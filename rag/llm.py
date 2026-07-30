@@ -47,7 +47,7 @@ class LLMService:
             f"   'Rất tiếc, bài học hiện tại ({lesson_scope_name}) không đề cập tới nội dung này. Bạn có muốn chuyển sang bài học khác để tra cứu không?'"
         )
         
-        user_prompt = f"CONTEXT TAI LIEU:\n{context_str}\n\nCAU HOI HOC VIEN: {user_question}"
+        user_prompt = f"CONTEXT TAI LIEU:\n{context_str}\n\nCAU HOI HOC VIEN: {question}"
 
         models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
 
