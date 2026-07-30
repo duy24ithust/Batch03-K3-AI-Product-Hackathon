@@ -7,6 +7,7 @@ class Chunk(BaseModel):
     source: str
     text: str
     page: Optional[int] = None
+    confidence: Optional[float] = None  # RRF score from HybridRetriever
 
 
 class AgentState(TypedDict):
@@ -20,3 +21,4 @@ class AgentState(TypedDict):
     suggested_questions: List[str]
     citations: List[dict]            # Citations with page numbers
     metadata: dict                   # Response metadata
+    retrieval_scope: Optional[str]   # 'page_specific' or 'global'

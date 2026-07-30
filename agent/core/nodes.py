@@ -5,16 +5,57 @@ from .llm import llm
 from .prompts import get_generate_prompt, get_suggest_prompt, format_chunks_for_prompt
 
 
+def decide_retrieval_scope(state: AgentState) -> str:
+    """LLM decides: should retrieve from current page or globally?
+    Returns: 'page_specific' or 'global'
+    """
+    message = state["message"]
+    page = state.get("page")
+
+    decision_prompt = f"""Xem câu hỏi sau của người dùng. Họ có đang hỏi về trang/slide HIỆN TẠI (trang {page}) hay đang hỏi chung chung?
+
+Câu hỏi: "{message}"
+
+Trả lời chỉ 1 từ:
+- "page" nếu hỏi về trang/slide hiện tại
+- "global" nếu hỏi chung chung hoặc liên quan đến nội dung khác"""
+
+    response = llm.invoke([
+        {"role": "user", "content": decision_prompt}
+    ])
+
+    answer = response.content.strip().lower() if hasattr(response, "content") else str(response).lower()
+    return "page_specific" if "page" in answer else "global"
+
+
 def retrieve_node(state: AgentState) -> dict[str, any]:
-    """Node 1: Lấy chunks liên quan từ retrieval."""
-    chunks = retriever.retrieve(
-        query=state["message"],
-        lesson_id=state["lesson_id"],
-        top_k=5,
-    )
-    # Chuyển chunks từ Pydantic model thành dict (LangGraph cần serializable)
+    """Node 1: Retrieve with LLM-guided scope decision."""
+    page = state.get("page")
+    lesson_id = state["lesson_id"]
+
+    # Let LLM decide retrieval scope
+    scope = decide_retrieval_scope(state)
+
+    if scope == "page_specific" and page:
+        chunks = retriever.retrieve(
+            query=state["message"],
+            lesson_id=lesson_id,
+            top_k=5,
+            page=page,
+        )
+    else:
+        chunks = retriever.retrieve(
+            query=state["message"],
+            lesson_id=lesson_id,
+            top_k=5,
+        )
+
     chunks_dict = [chunk.model_dump() for chunk in chunks]
-    return {"chunks": chunks_dict}
+    state_update = {"chunks": chunks_dict}
+    if scope:
+        state_update["retrieval_scope"] = scope
+
+    return state_update
 
 
 def generate_node(state: AgentState) -> dict[str, any]:

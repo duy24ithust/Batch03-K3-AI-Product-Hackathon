@@ -7,8 +7,8 @@ class RetrieverInterface(ABC):
     """Interface contract với team retrieval — các hàm này sẽ được swap khi module thật sẵn sàng."""
 
     @abstractmethod
-    def retrieve(self, query: str, lesson_id: str, top_k: int = 5) -> List[Chunk]:
-        """Trả về các đoạn context liên quan nhất cho câu hỏi."""
+    def retrieve(self, query: str, lesson_id: str, top_k: int = 5, page: Optional[int] = None) -> List[Chunk]:
+        """Trả về các đoạn context liên quan nhất cho câu hỏi. Nếu page set, ưu tiên chunks từ page đó."""
         pass
 
     @abstractmethod
@@ -17,12 +17,11 @@ class RetrieverInterface(ABC):
         pass
 
 
-# Tích hợp RealRetriever kết nối dữ liệu Multimodal RAG từ pdf_extract/output_ocr/
+# Tích hợp RealRetriever - sử dụng RAG CLI Pipeline
 try:
     from .retrieval_real import RealRetriever
     retriever = RealRetriever()
 except Exception as e:
-    print(f"⚠️ Không thể khởi tạo RealRetriever ({e}). Sử dụng RetrieverStub làm fallback.")
-    from .retrieval_stub import RetrieverStub
-    retriever = RetrieverStub()
+    print(f"⚠️ Không thể khởi tạo RealRetriever ({e})")
+    raise
 
