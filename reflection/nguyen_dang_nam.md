@@ -14,9 +14,8 @@
 ## 1. Công việc cá nhân đã thực hiện cụ thể
 
 1. **Trích Xuất & Xử Lý OCR Data Bài Giảng (`data/vlearn-pack/md/`):** 
-   - Trực tiếp rà soát và làm sạch dữ liệu OCR từ 6 bộ slide bài giảng.
-   - Bổ sung các đoạn mô tả chi tiết sơ đồ/hình ảnh (ví dụ: *Sơ đồ RAG Architecture ở Trang 18*), qua đó giải quyết dứt điểm **Bug 1** do Coach Sang phản hồi.
-
+   - **Làm gì:** Trực tiếp rà soát, lọc nhiễu và làm sạch dữ liệu OCR từ 6 bộ slide bài giảng gốc (b1 đến b5). Đặc biệt, tôi đã thực hiện mô tả văn bản chi tiết cho các sơ đồ hình ảnh phức tạp (Multimodal Image-to-Text Annotation) — tiêu biểu như sơ đồ *RAG Architecture ở Trang 18 bài B1* — giúp LLM đọc hiểu và truy xuất chính xác nội dung biểu đồ thay vì chỉ nhận diện chữ thô, qua đó giải quyết dứt điểm **Bug 1** (từ chối/trả lời sai câu hỏi sơ đồ) do Coach Sang phản hồi.
+   - **Dùng gì:** Sử dụng **Mistral OCR API**, pipeline xử lý Python (`pdf_extract`), các thuật toán Regex làm sạch văn bản và cấu trúc thẻ định dạng chuẩn `<!-- START PAGE N -->`.
 2. **Thiết Kế & Thử Nghiệm Kiến Trúc RAG Ban Đầu:** 
    - Tự tay thiết kế phiên bản RAG thử nghiệm ban đầu cho hệ thống. 
    - Tuy nhiên, sau quá trình thử nghiệm thực tế và thảo luận cùng nhóm, phiên bản RAG này đã được thay thế bằng giải pháp tối ưu hơn để phù hợp nhất với định hướng chung của sản phẩm.
