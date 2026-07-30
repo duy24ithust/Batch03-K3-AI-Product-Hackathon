@@ -3,6 +3,31 @@ from .state import AgentState, Chunk, RetrievalStateOutput
 from .retrieval_client import retriever
 from .llm import llm
 from .prompts import get_generate_prompt, get_suggest_prompt, format_chunks_for_prompt, get_retrieval_state_prompt
+
+
+def decide_retrieval_scope(state: AgentState) -> str:
+    """LLM decides: should retrieve from current page or globally?
+    Returns: 'page_specific' or 'global'
+    """
+    message = state["message"]
+    page = state.get("page")
+
+    decision_prompt = f"""Xem câu hỏi sau của người dùng. Họ có đang hỏi về trang/slide HIỆN TẠI (trang {page}) hay đang hỏi chung chung?
+
+Câu hỏi: "{message}"
+
+Trả lời chỉ 1 từ:
+- "page" nếu hỏi về trang/slide hiện tại
+- "global" nếu hỏi chung chung hoặc liên quan đến nội dung khác"""
+
+    response = llm.invoke([
+        {"role": "user", "content": decision_prompt}
+    ])
+
+    answer = response.content.strip().lower() if hasattr(response, "content") else str(response).lower()
+    return "page_specific" if "page" in answer else "global"
+
+
 def retrieve_node(state: AgentState) -> dict[str, any]:
     """Node 1: Retrieve with LLM-guided scope decision."""
     page = state.get("page")
