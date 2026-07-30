@@ -4,15 +4,33 @@ from .retrieval_client import retriever
 from .llm import llm
 from .prompts import get_generate_prompt, get_suggest_prompt, format_chunks_for_prompt, get_retrieval_state_prompt
 def retrieve_node(state: AgentState) -> dict[str, any]:
-    """Node 1: Lấy chunks liên quan từ retrieval."""
-    chunks = retriever.retrieve(
-        query=state["message"],
-        lesson_id=state["lesson_id"],
-        top_k=5,
-    )
-    # Chuyển chunks từ Pydantic model thành dict (LangGraph cần serializable)
+    """Node 1: Retrieve with LLM-guided scope decision."""
+    page = state.get("page")
+    lesson_id = state["lesson_id"]
+
+    # Let LLM decide retrieval scope
+    scope = decide_retrieval_scope(state)
+
+    if scope == "page_specific" and page:
+        chunks = retriever.retrieve(
+            query=state["message"],
+            lesson_id=lesson_id,
+            top_k=5,
+            page=page,
+        )
+    else:
+        chunks = retriever.retrieve(
+            query=state["message"],
+            lesson_id=lesson_id,
+            top_k=5,
+        )
+
     chunks_dict = [chunk.model_dump() for chunk in chunks]
-    return {"chunks": chunks_dict, "current_retrieval_count": state.get("current_retrieval_count", 0) + 1}
+    state_update = {"chunks": chunks_dict, "current_retrieval_count": state.get("current_retrieval_count", 0) + 1}
+    if scope:
+        state_update["retrieval_scope"] = scope
+    
+    return state_update
 
 def verify_retrieval_node(state: AgentState) -> dict[str, any]:
     """Node phụ: Kiểm tra xem retrieval đã đầy đủ chưa (dựa trên chunks)."""

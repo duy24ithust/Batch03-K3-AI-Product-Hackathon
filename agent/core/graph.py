@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from .state import AgentState
-from .nodes import retrieve_node, generate_node, suggest_node, slide_context_node, retrieval_state_node
+from .nodes import retrieve_node, generate_node, suggest_node, slide_context_node, verify_retrieval_node
 
 def retrieval_routing(state: AgentState) -> str:
     """Routing function để quyết định có đi tiếp sang generate hay cần retrieve thêm."""
@@ -18,7 +18,7 @@ def build_chat_graph():
     builder.add_node("retrieve", retrieve_node)
     builder.add_node("generate", generate_node)
     builder.add_node("suggest", suggest_node)
-    builder.add_node("verify_retrieval", retrieval_state_node)
+    builder.add_node("verify_retrieval", verify_retrieval_node)
     
     # Add edges
     builder.add_edge(START, "retrieve")
