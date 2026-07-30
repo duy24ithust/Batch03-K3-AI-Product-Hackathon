@@ -5,9 +5,12 @@ from langchain_openai import ChatOpenAI
 # Load .env first
 load_dotenv()
 
-# Khởi tạo LLM instance (yêu cầu OPENAI_API_KEY đã được set)
+api_key = os.getenv("OPENAI_API_KEY") or os.getenv("MISTRAL_API_KEY") or "mock-key-for-test"
+
+# Khởi tạo LLM instance
 llm = ChatOpenAI(
     model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
     temperature=0.7,
-    api_key=os.getenv("OPENAI_API_KEY"),
+    api_key=api_key,
 )
+

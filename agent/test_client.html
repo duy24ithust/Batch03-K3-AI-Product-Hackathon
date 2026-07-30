@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -139,6 +140,7 @@
                 opacity: 0;
                 transform: translateY(10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -214,9 +216,13 @@
         }
 
         @keyframes typingAnimation {
-            0%, 60%, 100% {
+
+            0%,
+            60%,
+            100% {
                 opacity: 0.5;
             }
+
             30% {
                 opacity: 1;
             }
@@ -341,6 +347,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Sidebar -->
@@ -369,7 +376,8 @@
 
             <div id="status" class="status-badge offline">🔴 Offline</div>
 
-            <button onclick="clearChat()" style="width: 100%; margin-top: 20px; padding: 10px; background: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
+            <button onclick="clearChat()"
+                style="width: 100%; margin-top: 20px; padding: 10px; background: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
                 Clear Chat
             </button>
         </div>
@@ -493,12 +501,16 @@
             SEND_BTN.disabled = true;
 
             const endpoint = API_ENDPOINT.value.trim();
+            const slideIdVal = SLIDE_ID.value.trim();
             const payload = {
                 session_id: SESSION_ID.value.trim(),
                 message: message,
                 lesson_id: LESSON_ID.value.trim(),
-                slide_id: SLIDE_ID.value.trim() || null,
+                slide_id: slideIdVal || "unknown",
             };
+            if (!slideIdVal) {
+                payload.page = null;
+            }
 
             try {
                 // Add loading indicator
@@ -551,7 +563,7 @@
                                     updateLastMessage(fullText);
                                 } else if (eventType === 'citation') {
                                     citations.push(data);
-                                } else if (eventType === 'suggested_questions') {
+                                } else if (eventType === 'suggestions') {
                                     suggestions = data.questions;
                                 }
                             }
@@ -611,4 +623,5 @@
         });
     </script>
 </body>
+
 </html>
