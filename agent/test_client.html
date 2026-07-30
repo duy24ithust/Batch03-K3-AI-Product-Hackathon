@@ -128,6 +128,28 @@
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
         }
 
+        .btn-page-nav {
+            padding: 8px 10px;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            background: #f8fafc;
+            color: var(--text-main);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-page-nav:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .btn-page-nav:active {
+            transform: scale(0.95);
+        }
+
         /* Quick Lesson Chips */
         .lesson-chips {
             display: flex;
@@ -574,8 +596,15 @@
             </div>
 
             <div class="sidebar-section">
-                <label for="slideId">Slide / Trang Đang Xem</label>
-                <input type="text" id="slideId" class="form-control" value="slide-001" placeholder="Ví dụ: slide-001, page 12">
+                <label for="pageNum">Trang Đang Xem</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn-page-nav" onclick="changePage(-5)" title="Lùi 5 trang">⬅ 5</button>
+                    <button class="btn-page-nav" onclick="changePage(-1)" title="Lùi 1 trang">-</button>
+                    <input type="number" id="pageNum" class="form-control" value="1" min="1" max="100" style="flex: 1; text-align: center;">
+                    <button class="btn-page-nav" onclick="changePage(1)" title="Tới 1 trang">+</button>
+                    <button class="btn-page-nav" onclick="changePage(5)" title="Tới 5 trang">5 ➜</button>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px; text-align: center;">Trang: <strong id="pageDisplay">1</strong></div>
             </div>
 
             <div class="sidebar-section">
@@ -631,13 +660,27 @@
         const MESSAGE_INPUT = document.getElementById('messageInput');
         const SEND_BTN = document.getElementById('sendBtn');
         const LESSON_ID = document.getElementById('lessonId');
-        const SLIDE_ID = document.getElementById('slideId');
+        const PAGE_NUM = document.getElementById('pageNum');
+        const PAGE_DISPLAY = document.getElementById('pageDisplay');
         const SESSION_ID = document.getElementById('sessionId');
         const API_ENDPOINT = document.getElementById('apiEndpoint');
         const STATUS_CARD = document.getElementById('statusCard');
         const STATUS_TEXT = document.getElementById('statusText');
 
         let currentBotBubble = null;
+
+        function changePage(delta) {
+            const current = parseInt(PAGE_NUM.value) || 1;
+            const newPage = Math.max(1, current + delta);
+            PAGE_NUM.value = newPage;
+            PAGE_DISPLAY.textContent = newPage;
+        }
+
+        PAGE_NUM.addEventListener('change', () => {
+            const val = Math.max(1, parseInt(PAGE_NUM.value) || 1);
+            PAGE_NUM.value = val;
+            PAGE_DISPLAY.textContent = val;
+        });
 
         function setStatus(isOnline) {
             if (isOnline) {
@@ -758,14 +801,15 @@
             currentBotBubble = addMessage('<div class="typing-dots"><span></span><span></span><span></span></div>', false);
 
             const endpoint = API_ENDPOINT.value.trim();
-            const slideIdVal = SLIDE_ID.value.trim() || "slide-001";
+            const pageVal = parseInt(PAGE_NUM.value) || 1;
             const lessonIdVal = LESSON_ID.value.trim() || "b1";
 
             const payload = {
                 session_id: SESSION_ID.value.trim() || "session-demo",
                 message: message,
                 lesson_id: lessonIdVal,
-                slide_id: slideIdVal,
+                slide_id: `slide-${String(pageVal).padStart(3, '0')}`,
+                page: pageVal,
             };
 
             try {
