@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
 
 # Load .env first
 load_dotenv()

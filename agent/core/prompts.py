@@ -1,6 +1,14 @@
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage
 
+def get_retrieval_state_prompt():
+    """System prompt để kiểm tra xem retrieval các chunk có đầy đủ thông tin hay không"""
+    system_prompt = "Bạn là một agent kiểm tra xem retrieval các chunk có đầy đủ thông tin hay không." \
+                        "Trả về một structured output có 1 trường boolean 'end_retrieve' (True nếu retrieval đã đầy đủ để trả lời câu hỏi, False nếu cần retrieve thêm)." \
+                        "Các chunk được cung cấp dưới đây:\n{chunks_text}\n" \
+                        "Câu hỏi gốc của học viên: {original_question}\n" \
+                        "Các chunk:\n{chunks_text}\n"
+    return system_prompt
 
 def get_generate_prompt():
     """System prompt cho generate_node — trả lời dựa trên chunks, không bịa."""
@@ -10,9 +18,13 @@ Nhiệm vụ của bạn là trả lời câu hỏi của học viên dựa CH�
 NGUYÊN TẮC:
 1. Chỉ trả lời dựa trên thông tin trong chunks cung cấp.
 2. Nếu không có thông tin đủ trong chunks, hãy trả lời: "Tôi không tìm thấy thông tin này trong tài liệu bài giảng. Bạn có thể hỏi giảng viên hoặc xem lại slide?"
-3. KHÔNG bịa hay đoán thông tin.
+
 4. Nếu câu hỏi quá mơ hồ hoặc không rõ ngữ cảnh, hãy hỏi lại học viên để hiểu rõ hơn.
 5. Trả lời ngắn, rõ ràng, dễ hiểu cho học viên cấp độ hackathon.
+CONSTRAINTS:
+1. KHÔNG bịa hay đoán thông tin.
+
+TOOLS:
 
 Tài liệu tham khảo (chunks):
 {chunks_text}
@@ -28,7 +40,7 @@ def get_suggest_prompt():
 
 Dựa trên câu trả lời vừa cho và tài liệu tham khảo, hãy sinh 3 câu hỏi gợi ý chuyên sâu về chủ đề này.
 
-YÊUCẦU:
+YÊU CẦU:
 1. Các câu hỏi nên dẫn dắt học viên khám phá khía cạnh khác/sâu hơn.
 2. Câu hỏi phải liên quan đến nội dung trong tài liệu.
 3. Độ khó tăng dần.

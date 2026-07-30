@@ -1,10 +1,8 @@
 from typing import Union
-from .state import AgentState, Chunk
+from .state import AgentState, Chunk, RetrievalStateOutput
 from .retrieval_client import retriever
 from .llm import llm
-from .prompts import get_generate_prompt, get_suggest_prompt, format_chunks_for_prompt
-
-
+from .prompts import get_generate_prompt, get_suggest_prompt, format_chunks_for_prompt, get_retrieval_state_prompt
 def retrieve_node(state: AgentState) -> dict[str, any]:
     """Node 1: Lấy chunks liên quan từ retrieval."""
     chunks = retriever.retrieve(
@@ -14,7 +12,28 @@ def retrieve_node(state: AgentState) -> dict[str, any]:
     )
     # Chuyển chunks từ Pydantic model thành dict (LangGraph cần serializable)
     chunks_dict = [chunk.model_dump() for chunk in chunks]
-    return {"chunks": chunks_dict}
+    return {"chunks": chunks_dict, "current_retrieval_count": state.get("current_retrieval_count", 0) + 1}
+
+def verify_retrieval_node(state: AgentState) -> dict[str, any]:
+    """Node phụ: Kiểm tra xem retrieval đã đầy đủ chưa (dựa trên chunks)."""
+    chunks_text = format_chunks_for_prompt(state["chunks"])
+    system_prompt = get_retrieval_state_prompt()
+
+    # Build full prompt
+    full_system_prompt = system_prompt.format(
+        chunks_text=chunks_text,
+        original_question=state["message"],
+    )
+    llm_with_retrieval_state = llm.with_structured_output(RetrievalStateOutput)
+    # Gọi LLM
+    response = llm_with_retrieval_state.invoke([
+        {"role": "system", "content": full_system_prompt},
+        {"role": "user", "content": state["message"]},
+    ])
+
+    end_retrieve = response.end_retrieve or False
+
+    return {"end_retrieve": end_retrieve}
 
 
 def generate_node(state: AgentState) -> dict[str, any]:
@@ -60,7 +79,6 @@ def suggest_node(state: AgentState) -> dict[str, any]:
     ][:3]  # Giới hạn 3 câu
 
     return {"suggested_questions": suggested_questions}
-
 
 def slide_context_node(state: AgentState) -> dict[str, any]:
     """Node phụ: Lấy context của 1 slide cụ thể (cho /suggest/idle)."""
