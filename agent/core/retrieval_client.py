@@ -17,12 +17,12 @@ class RetrieverInterface(ABC):
         pass
 
 
-# Đây sẽ là điểm swap duy nhất khi team retrieval xong
-# Import thực tế sẽ là:
-# from retrieval_module import Retriever as RetrieverImpl
-# retriever = RetrieverImpl()
+# Tích hợp RealRetriever kết nối dữ liệu Multimodal RAG từ pdf_extract/output_ocr/
+try:
+    from .retrieval_real import RealRetriever
+    retriever = RealRetriever()
+except Exception as e:
+    print(f"⚠️ Không thể khởi tạo RealRetriever ({e}). Sử dụng RetrieverStub làm fallback.")
+    from .retrieval_stub import RetrieverStub
+    retriever = RetrieverStub()
 
-# Tạm thời dùng stub
-from .retrieval_stub import RetrieverStub
-
-retriever = RetrieverStub()

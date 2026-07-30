@@ -3,9 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from routers import chat_router, idle_router
 from models.schemas import HealthResponse
+import logging
+import sys
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 
 app = FastAPI(title="VLearn AI Agent")
 
@@ -34,5 +43,10 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+    import sys
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Ensure stdout/stderr are unbuffered for real-time logging
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
+
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
