@@ -3,10 +3,11 @@
 ### 📌 Thông tin chung
 - **Họ và tên:** Nguyễn Đăng Nam
 - **Mã học viên:** 2A202601307
-- **Vai trò trong nhóm:** OCR Data & Product Spec Lead
+- **Vai trò trong nhóm:** OCR Data & RAG 
 - **Phần phụ trách có tên trong repo:** 
   - Xử lý OCR Data bài giảng (`data/vlearn-pack/md/`)
   - Thử nghiệm RAG
+  - Thử nghiệm và chỉnh sửa 1 phần system prompt cho tối ưu hơn
 
 ---
 
@@ -25,7 +26,7 @@
 ## 2. AI đã hỗ trợ như thế nào & Ranh giới "Vibe-Coding"
 
 - **Vai trò của AI:** Trong quá trình làm việc, tôi sử dụng AI như một **trợ lý kiến trúc** để tư vấn hướng dẫn, phân tích cấu trúc tài liệu và đưa ra các đề xuất giải pháp trích xuất file PDF tối ưu nhất.
-- **Ranh giới "Vibe-Coding":** Tôi không phụ thuộc hoàn toàn vào AI. AI đóng vai trò gợi ý giải pháp và phương án xử lý, nhưng bản thân tôi vẫn **trực tiếp lập trình**, kiểm thử độ chính xác của dữ liệu OCR/Markdown sau trích xuất và chịu trách nhiệm hoàn toàn về chất lượng đầu ra của pipeline.
+- **Ranh giới "Vibe-Coding":** Tôi không phụ thuộc hoàn toàn vào AI. AI đóng vai trò gợi ý giải pháp và phương án xử lý, tôi có vibe code nhưng kiểm soát vibe code theo từng phần chứ không phải là vibe 1 phát là xong, kiểm thử độ chính xác của dữ liệu OCR/Markdown sau trích xuất và chịu trách nhiệm hoàn toàn về chất lượng đầu ra của pipeline.
 
 ---
 
