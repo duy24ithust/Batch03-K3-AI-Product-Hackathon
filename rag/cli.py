@@ -12,29 +12,39 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 from rag.pipeline import RAGPipeline
 
-def show_lesson_menu():
+def show_lesson_menu(available_lessons):
     print("\n📚 CHỌN BÀI HỌC BẠN ĐANG XEM:")
-    print("  [1] Bài B1  (Bức tranh AI, ML, LLM)")
-    print("  [2] Bài B4  (Prompt, Context Engineering, Tool Calling)")
-    print("  [3] Bài B5  (Automation Ladder, Copilot to Automation)")
-    print("  [4] Tất cả các bài (Search All)")
+    for idx, lesson in enumerate(available_lessons, 1):
+        print(f"  [{idx}] Bài {lesson}")
+    print(f"  [{len(available_lessons) + 1}] Tất cả các bài (Search All)")
     print("---------------------------------------------------------")
 
-def parse_lesson_choice(choice: str) -> str:
+def parse_lesson_choice(choice: str, available_lessons) -> str:
     choice = choice.strip().lower()
-    if choice in ["1", "b1"]:
-        return "B1"
-    elif choice in ["2", "b4"]:
-        return "B4"
-    elif choice in ["3", "b5"]:
-        return "B5"
-    elif choice in ["4", "all", "tất cả", "tat ca"]:
+    
+    # Kiểm tra theo số thứ tự
+    if choice.isdigit():
+        idx = int(choice) - 1
+        if 0 <= idx < len(available_lessons):
+            return available_lessons[idx]
+        elif idx == len(available_lessons):
+            return "ALL"
+            
+    # Kiểm tra theo tên (b1, b2, b3, b4, b5...)
+    choice_upper = choice.upper()
+    for lesson in available_lessons:
+        if choice_upper == lesson or choice_upper == f"B{lesson}":
+            return lesson
+            
+    if choice_upper in ["ALL", "TẤT CẢ", "TAT CA"]:
         return "ALL"
-    return "B5"  # Mặc định
+
+    return available_lessons[0] if available_lessons else "ALL"
 
 def main():
     print("=" * 65)
     print("🤖 CHƯƠNG TRÌNH AI TUTOR VLEARN (SCOPED RAG & LESSON SUMMARY)")
+    print("   Nguồn dữ liệu: Thư mục pdf_extract/output_ocr/full_rag_ready")
     print("=" * 65)
 
     # Khởi tạo RAG Pipeline
@@ -44,10 +54,12 @@ def main():
         print(f"\n❌ Lỗi khởi tạo RAG Pipeline: {e}")
         return
 
-    # Chọn bài ban đầu
-    show_lesson_menu()
-    user_choice = input("👉 Nhập số bài học (1-4) hoặc tên bài (b1, b4, b5): ").strip()
-    current_lesson = parse_lesson_choice(user_choice)
+    # Lấy danh sách các bài học hiện có (vd: ['B1', 'B2', 'B3', 'B4', 'B5'])
+    available_lessons = sorted(list(set(c["doc_name"] for c in pipeline.chunks)))
+    
+    show_lesson_menu(available_lessons)
+    user_choice = input(f"👉 Nhập số bài học (1-{len(available_lessons)+1}) hoặc tên bài (b1..b5): ").strip()
+    current_lesson = parse_lesson_choice(user_choice, available_lessons)
 
     print("\n" + "=" * 65)
     print(f"📖 ĐÃ CHỌN NGỮ CẢNH: [Bài {current_lesson.upper()}]")
@@ -71,17 +83,17 @@ def main():
                 break
 
             # Xử lý lệnh đổi bài
-            if user_input.lower() in ["/lesson", "/doibai", "/doibaibai", "đổi bài", "doi bai"]:
-                show_lesson_menu()
-                new_choice = input("👉 Nhập số bài học mới (1-4): ").strip()
-                current_lesson = parse_lesson_choice(new_choice)
+            if user_input.lower() in ["/lesson", "/doibai", "đổi bài", "doi bai"]:
+                show_lesson_menu(available_lessons)
+                new_choice = input(f"👉 Nhập số bài học mới (1-{len(available_lessons)+1}): ").strip()
+                current_lesson = parse_lesson_choice(new_choice, available_lessons)
                 print(f"✅ Đã chuyển ngữ cảnh sang bài học: [Bài {current_lesson.upper()}]")
                 continue
 
-            # Cho phép đổi trực tiếp dạng /lesson b1, /lesson 4
+            # Cho phép đổi trực tiếp dạng /lesson b1, /lesson 2
             if user_input.startswith("/lesson "):
                 arg = user_input.replace("/lesson ", "").strip()
-                current_lesson = parse_lesson_choice(arg)
+                current_lesson = parse_lesson_choice(arg, available_lessons)
                 print(f"✅ Đã chuyển ngữ cảnh sang bài học: [Bài {current_lesson.upper()}]")
                 continue
 

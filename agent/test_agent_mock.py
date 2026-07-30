@@ -4,9 +4,15 @@ Chạy: python test_agent_mock.py
 """
 
 import sys
+from pathlib import Path
+AGENT_DIR = Path(__file__).resolve().parent
+if str(AGENT_DIR) not in sys.path:
+    sys.path.insert(0, str(AGENT_DIR))
+
 from unittest.mock import patch, MagicMock
 from core.state import AgentState
 from core.graph import chat_graph, idle_graph
+
 
 
 # Test data

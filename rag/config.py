@@ -10,15 +10,20 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# Thư mục chứa dữ liệu OCR RAG-Ready
-OUTPUT_OCR_DIR = PROJECT_ROOT / "pdf_extract" / "output_ocr"
+# Thư mục chứa dữ liệu OCR RAG-Ready của tất cả các bài
+FULL_RAG_READY_DIR = PROJECT_ROOT / "pdf_extract" / "output_ocr" / "full_rag_ready"
 
-# Các file mặc định để RAG
-DEFAULT_TARGET_FILES = [
-    OUTPUT_OCR_DIR / "b1-trang" / "b1-trang_full_rag_ready.md",
-    OUTPUT_OCR_DIR / "b4" / "b4_full_rag_ready.md",
-    OUTPUT_OCR_DIR / "b5-trang" / "b5-trang_full_rag_ready.md",
-]
+# Tự động nạp tất cả các file .md trong thư mục full_rag_ready
+if FULL_RAG_READY_DIR.exists() and list(FULL_RAG_READY_DIR.glob("*.md")):
+    DEFAULT_TARGET_FILES = sorted(list(FULL_RAG_READY_DIR.glob("*.md")))
+else:
+    # Dự phòng cho thư mục cũ
+    OUTPUT_OCR_DIR = PROJECT_ROOT / "pdf_extract" / "output_ocr"
+    DEFAULT_TARGET_FILES = [
+        OUTPUT_OCR_DIR / "b1-trang" / "b1-trang_full_rag_ready.md",
+        OUTPUT_OCR_DIR / "b4" / "b4_full_rag_ready.md",
+        OUTPUT_OCR_DIR / "b5-trang" / "b5-trang_full_rag_ready.md",
+    ]
 
 # Cấu hình RAG
 DEFAULT_MODEL = "openai/gpt-4o-mini"
