@@ -13,11 +13,12 @@ class MarkdownPageLoader:
         for file_path in self.file_paths:
             file_path = Path(file_path)
             if not file_path.exists():
-                print(f"⚠️ [Loader Warning] File không tồn tại: {file_path}")
+                print(f"[Loader Warning] File khong ton tai: {file_path}")
                 continue
             
             content = file_path.read_text(encoding="utf-8")
-            doc_name = file_path.stem.replace("_full_rag_ready", "").upper()
+            # Chuẩn hóa tên bài (vd: b1_full_rag_ready -> B1, b5-trang_full_rag_ready -> B5)
+            doc_name = file_path.stem.replace("_full_rag_ready", "").replace("-trang", "").upper()
             
             # Tách theo thẻ <!-- START PAGE X -->
             page_blocks = re.split(r"<!--\s*START PAGE\s*(\d+)\s*-->", content, flags=re.IGNORECASE)
