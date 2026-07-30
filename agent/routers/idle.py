@@ -1,37 +1,60 @@
-from fastapi import APIRouter
-from core.graph import idle_graph
-from core.state import AgentState
+"""Gợi ý chủ động khi học viên dừng lâu ở một slide.
+
+Field `follow_ups` trong DB production chưa bao giờ được dùng (0/1261 turn) — học
+viên hỏi xong là đi, không ai dẫn họ đào sâu tiếp. Endpoint này lấp chỗ đó.
+"""
+
+import logging
+import re
+
+from fastapi import APIRouter, HTTPException
+
+from core.agent import run_idle
+from core.lecture import LectureNotFound, load_lecture
 from models.schemas import IdleSuggestRequest, IdleSuggestResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
+_DIGITS = re.compile(r"(\d+)")
 
-@router.post("/suggest/idle")
+
+@router.post("/suggest/idle", response_model=IdleSuggestResponse)
 async def suggest_idle(request: IdleSuggestRequest) -> IdleSuggestResponse:
-    """Gợi ý câu hỏi khi user dừng lâu ở 1 slide."""
-    # Khởi tạo state (message rỗng, chỉ dùng slide_id)
-    initial_state: AgentState = {
-        "session_id": request.session_id,
-        "message": "",  # Không dùng message, chỉ dùng slide context
-        "lesson_id": request.lesson_id,
-        "slide_id": request.slide_id,
-        "chunks": [],
-        "answer": "",
-        "suggested_questions": [],
-    }
+    """Trả về 3 câu hỏi gợi ý cho slide đang mở. Không ghi vào history hội thoại."""
+    try:
+        lecture = load_lecture(request.lesson_id)
+    except LectureNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    # Gọi idle graph
-    result = idle_graph.invoke(initial_state)
+    match = _DIGITS.search(request.slide_id or "")
+    page = int(match.group(1)) if match else None
 
-    # Extract keywords từ chunks
+    questions: list[str] = []
+    async for kind, payload in run_idle(
+        lesson_id=request.lesson_id,
+        page=page,
+        session_id=request.session_id,
+    ):
+        if kind == "suggestions":
+            questions = payload
+
+    # Keyword = tiêu đề trang đang xem + vài trang kế, để UI hiện chip chủ đề
     keywords = []
-    for chunk in result.get("chunks", []):
-        # Giả sử keywords là từ đầu tiên của chunk text
-        text = chunk.get("text", "")
-        words = text.split()[:3]  # Lấy 3 từ đầu
-        keywords.extend(words)
+    if page:
+        titles = dict(lecture.outline)
+        for candidate in (page, page + 1, page + 2):
+            title = titles.get(candidate)
+            if title:
+                keywords.append(title)
 
-    return IdleSuggestResponse(
-        questions=result.get("suggested_questions", []),
-        keywords=keywords[:5],  # Giới hạn 5 keywords
+    logger.info(
+        "POST /suggest/idle session=%s lesson=%s page=%s idle=%ds questions=%d",
+        request.session_id,
+        request.lesson_id,
+        page,
+        request.idle_seconds,
+        len(questions),
     )
+
+    return IdleSuggestResponse(questions=questions, keywords=keywords[:5])

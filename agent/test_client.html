@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Markdown Parser: marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
         :root {
@@ -424,6 +426,35 @@
             transition: all 0.2s ease;
         }
 
+        /* Agent đang gọi tool — chỉ xuất hiện khi nó quyết định cần mở rộng ngoài bài */
+        .tool-badge {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 5px 10px;
+            background: #fffbeb;
+            color: #b45309;
+            border: 1px solid #fde68a;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            animation: toolPulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes toolPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.55; }
+        }
+
+        /* Số đo mỗi turn: llm_calls = 1 nghĩa là không phải đi tìm gì cả */
+        .stats-line {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border, #e5e7eb);
+            font-size: 11px;
+            color: var(--text-muted, #9ca3af);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
         .citation-badge:hover {
             background: #dbeafe;
             transform: translateY(-1px);
@@ -629,8 +660,8 @@
         <div class="chat-container">
             <div class="chat-header">
                 <div class="header-title">
-                    <h1>🎓 VLearn AI Tutor <span class="badge-live">RAG Live</span></h1>
-                    <p>Hỏi đáp bài học, đọc hiểu biểu đồ & trích dẫn trang bài giảng</p>
+                    <h1>🎓 VLearn AI Tutor <span class="badge-live">Full-context</span></h1>
+                    <p id="statusLine">Toàn bộ bài giảng nằm trong context — không có bước tìm kiếm nào để hỏng</p>
                 </div>
             </div>
 
@@ -638,8 +669,14 @@
                 <div class="message bot">
                     <div class="avatar">🤖</div>
                     <div class="bubble">
-                        <p>Xin chào! Tôi là <strong>VLearn AI Tutor</strong>. Tôi đã được nạp toàn bộ slide và biểu đồ bài học.</p>
-                        <p>Hãy chọn bài học ở cột bên trái và gõ câu hỏi của bạn (Nhấn <strong>Enter</strong> để gửi câu hỏi)!</p>
+                        <p>Xin chào! Tôi là <strong>VLearn AI Tutor</strong>. Toàn bộ bài giảng đang nằm trong context của tôi — kể cả phần mô tả biểu đồ.</p>
+                        <p>Chọn bài + đặt trang ở cột bên trái, rồi thử:</p>
+                        <ul style="margin: 6px 0 0 18px; line-height: 1.7;">
+                            <li>Đặt trang <strong>4</strong> → hỏi <em>"tôi chưa hiểu chỗ này"</em></li>
+                            <li>Vẫn ở trang 4 → hỏi <em>"temperature và top_p khác nhau thế nào?"</em> (nội dung ở trang 77)</li>
+                            <li>Hỏi <em>"few-shot prompting là gì?"</em> → xem nó tách mục "ngoài bài giảng"</li>
+                            <li>Hỏi <em>"deadline nộp bài lab day 2?"</em> → xem nó từ chối thế nào</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -701,16 +738,30 @@
 
         function formatMarkdown(text) {
             if (!text) return '';
-            let formatted = text
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/`([^`]+)`/g, '<code>$1</code>')
-                .replace(/\n\n/g, '</p><p>')
-                .replace(/\n/g, '<br>');
-            return `<p>${formatted}</p>`;
+
+            // Use marked.js untuk parse markdown
+            // Configure marked options
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+            });
+
+            let html = marked.parse(text);
+
+            // Add styling classes cho markdown elements
+            html = html
+                .replace(/<h1>/g, '<h1 style="font-size: 1.5em; font-weight: 700; margin: 12px 0 8px; color: var(--text-main);">')
+                .replace(/<h2>/g, '<h2 style="font-size: 1.3em; font-weight: 700; margin: 10px 0 6px; color: var(--text-main);">')
+                .replace(/<h3>/g, '<h3 style="font-size: 1.1em; font-weight: 600; margin: 8px 0 4px; color: var(--text-main);">')
+                .replace(/<strong>/g, '<strong style="font-weight: 700; color: var(--primary);">')
+                .replace(/<em>/g, '<em style="font-style: italic; color: var(--text-muted);">')
+                .replace(/<code>/g, '<code style="background: #f1f5f9; color: #d946ef; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">')
+                .replace(/<li>/g, '<li style="margin: 4px 0; margin-left: 20px;">')
+                .replace(/<ul>/g, '<ul style="margin: 8px 0; padding-left: 20px;">')
+                .replace(/<ol>/g, '<ol style="margin: 8px 0; padding-left: 20px;">')
+                .replace(/<p>/g, '<p style="margin: 8px 0; line-height: 1.6;">');
+
+            return html;
         }
 
         function addMessage(text, isUser = false) {
@@ -738,7 +789,14 @@
 
         function updateLastMessage(text) {
             if (currentBotBubble) {
-                currentBotBubble.innerHTML = formatMarkdown(text);
+                // Render markdown
+                const htmlContent = formatMarkdown(text);
+                currentBotBubble.innerHTML = htmlContent;
+
+                // Sanitize: remove any script tags (security)
+                const scripts = currentBotBubble.querySelectorAll('script');
+                scripts.forEach(script => script.remove());
+
                 MESSAGES.scrollTop = MESSAGES.scrollHeight;
             }
         }
@@ -752,16 +810,64 @@
 
             const uniquePages = new Set();
             citations.forEach(c => {
-                const pageNum = c.page || c.chunk_id;
-                if (pageNum && !uniquePages.has(pageNum)) {
-                    uniquePages.add(pageNum);
-                    const badge = document.createElement('span');
-                    badge.className = 'citation-badge';
-                    badge.innerHTML = `📄 Trang ${pageNum}`;
-                    box.appendChild(badge);
-                }
+                if (!c.page || uniquePages.has(c.page)) return;
+                uniquePages.add(c.page);
+
+                const badge = document.createElement('span');
+                badge.className = 'citation-badge';
+                badge.textContent = `📄 Trang ${c.page}`;
+                // Backend gửi kèm tiêu đề trang từ outline bài giảng
+                if (c.title) badge.title = c.title;
+                // Click badge → nhảy trang, đúng như FE thật sẽ làm với PDF viewer
+                badge.onclick = () => {
+                    PAGE_NUM.value = c.page;
+                    PAGE_DISPLAY.textContent = c.page;
+                };
+                box.appendChild(badge);
             });
 
+            currentBotBubble.appendChild(box);
+            MESSAGES.scrollTop = MESSAGES.scrollHeight;
+        }
+
+        // ── Badge "đang tra web" ──────────────────────────────────────────
+        // Agent chỉ gọi tool khi thật sự cần mở rộng ngoài bài giảng, nên badge
+        // này là tín hiệu để thấy agent đang quyết định gì.
+        const TOOL_LABELS = {
+            search_web: '🔍 Đang tra thêm ngoài bài giảng…',
+            create_check_question: '🎯 Đang soạn câu hỏi kiểm tra hiểu…'
+        };
+
+        function showToolBadge(name) {
+            if (!currentBotBubble) return;
+            clearToolBadge();
+            const badge = document.createElement('div');
+            badge.className = 'tool-badge';
+            badge.id = 'toolBadge';
+            badge.textContent = TOOL_LABELS[name] || `⚙️ ${name}…`;
+            currentBotBubble.appendChild(badge);
+            MESSAGES.scrollTop = MESSAGES.scrollHeight;
+        }
+
+        function clearToolBadge() {
+            const badge = document.getElementById('toolBadge');
+            if (badge) badge.remove();
+        }
+
+        function setStatusLine(text) {
+            const el = document.getElementById('statusLine');
+            if (el) el.textContent = text;
+        }
+
+        function renderStats(stats) {
+            if (!currentBotBubble) return;
+            const box = document.createElement('div');
+            box.className = 'stats-line';
+            const tools = (stats.tools_used && stats.tools_used.length)
+                ? stats.tools_used.join(', ') : 'không dùng tool';
+            box.textContent =
+                `⚡ token đầu ${stats.ttft_ms}ms · tổng ${stats.total_ms}ms · ` +
+                `${stats.llm_calls} lời gọi LLM · ${tools}`;
             currentBotBubble.appendChild(box);
             MESSAGES.scrollTop = MESSAGES.scrollHeight;
         }
@@ -829,6 +935,7 @@
                 let fullText = '';
                 let citations = [];
                 let suggestions = [];
+                let doneStats = null;
                 let buffer = '';
 
                 while (true) {
@@ -846,33 +953,53 @@
                         let dataStr = '';
 
                         block.split('\n').forEach(line => {
-                            if (line.startswith ? line.startswith('event:') : line.indexOf('event:') === 0) {
-                                eventType = line.replace('event:', '').trim();
-                            } else if (line.startswith ? line.startswith('data:') : line.indexOf('data:') === 0) {
-                                dataStr = line.replace('data:', '').trim();
+                            if (line.startsWith('event:')) {
+                                eventType = line.slice(6).trim();
+                            } else if (line.startsWith('data:')) {
+                                dataStr = line.slice(5).trim();
                             }
                         });
 
-                        if (dataStr) {
-                            try {
-                                const data = JSON.parse(dataStr);
-                                if (eventType === 'token') {
-                                    fullText += data.text;
-                                    updateLastMessage(fullText);
-                                } else if (eventType === 'citation') {
-                                    citations.push(data);
-                                } else if (eventType === 'suggestions' || eventType === 'suggested_questions') {
-                                    suggestions = data.questions || [];
-                                }
-                            } catch (e) {
-                                console.error("JSON parse error:", e);
-                            }
+                        if (!dataStr) continue;
+
+                        let data;
+                        try {
+                            data = JSON.parse(dataStr);
+                        } catch (e) {
+                            console.error('JSON parse error:', e, dataStr);
+                            continue;
+                        }
+
+                        if (eventType === 'metadata') {
+                            console.log('[metadata]', data);
+                            setStatusLine(`bài ${data.lesson_id} · ${data.total_pages} trang · ${data.model}`);
+                        } else if (eventType === 'token') {
+                            clearToolBadge();
+                            fullText += data.text;
+                            updateLastMessage(fullText);
+                        } else if (eventType === 'tool_use') {
+                            // Agent tự quyết định gọi tool — phần lớn turn KHÔNG có event này
+                            console.log('[tool_use]', data);
+                            showToolBadge(data.name);
+                        } else if (eventType === 'citation') {
+                            citations.push(data);
+                        } else if (eventType === 'suggestions') {
+                            suggestions = data.questions || [];
+                        } else if (eventType === 'done') {
+                            console.log('[done]', data);
+                            doneStats = data;
+                        } else if (eventType === 'error') {
+                            console.error('[error]', data);
+                            fullText += `\n\n❌ **Lỗi:** ${data.message} (${data.error_type})`;
+                            updateLastMessage(fullText);
                         }
                     }
                 }
 
+                clearToolBadge();
                 if (citations.length > 0) renderCitations(citations);
                 if (suggestions.length > 0) renderSuggestions(suggestions);
+                if (doneStats) renderStats(doneStats);
 
             } catch (error) {
                 updateLastMessage(`❌ Lỗi kết nối: ${error.message}. Hãy chắc chắn Server 'python agent/main.py' đang chạy!`);

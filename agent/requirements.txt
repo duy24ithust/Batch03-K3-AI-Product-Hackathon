@@ -1,11 +1,15 @@
-fastapi>=0.104.1
-uvicorn[standard]>=0.24.0
-langgraph>=0.1.0
-langchain>=0.1.20
-langchain-openai>=0.1.0
-python-dotenv>=1.0.0
-pydantic>=2.5.0
-sse-starlette>=2.0.0
-httpx>=0.25.1
-chromadb
-rank-bm25
+# Bỏ langchain/langgraph/chromadb/rank-bm25: toàn bộ bài giảng vừa trong context
+# window nên không cần retrieval, và OpenAI SDK gọi thẳng cho streaming thật.
+#
+# Env cần thiết (agent/.env):
+#   OPENAI_API_KEY   — bắt buộc
+#   OPENAI_MODEL     — tuỳ chọn, mặc định gpt-4o-mini
+#   TAVILY_API_KEY   — tuỳ chọn. Có thì search_web dùng Tavily (free 1.000 req/tháng,
+#                      kết quả tối ưu cho LLM); không có thì tự dùng DuckDuckGo (không cần key).
+# Web search chỉ cần httpx, không thêm dependency nào.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+openai>=1.50
+python-dotenv>=1.0
+pydantic>=2.7
+httpx>=0.27

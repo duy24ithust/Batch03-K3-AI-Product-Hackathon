@@ -1,124 +1,151 @@
+"""Endpoint chat — SSE streaming thật.
+
+Bản cũ chạy graph blocking xong rồi mới `answer.split()` + `sleep(0.05)` từng từ:
+học viên ngồi im 3–5 giây rồi thấy chữ nhỏ giọt giả tạo. Ở đây token đi ra ngay
+khi model sinh ra, TTFT ~2s.
+"""
+
+import json
+import logging
+import re
+import time
+from datetime import datetime, timezone
+from typing import AsyncIterator, Optional
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-import json
-from datetime import datetime
-from core.graph import chat_graph
-from core.state import AgentState
+
+from core.agent import MODEL, run_tutor
+from core.lecture import LectureNotFound, load_lecture
 from models.schemas import ChatRequest
-import asyncio
-import time
-import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+_DIGITS = re.compile(r"(\d+)")
 
-async def generate_sse_stream(request: ChatRequest):
-    """Generate SSE stream từ LangGraph chat graph."""
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _resolve_page(request: ChatRequest) -> Optional[int]:
+    """Ưu tiên `page`; nếu thiếu thì tách số từ slide_id ("slide-004" → 4)."""
+    if request.page:
+        return request.page
+    match = _DIGITS.search(request.slide_id or "")
+    return int(match.group(1)) if match else None
+
+
+async def _stream(request: ChatRequest, page: Optional[int]) -> AsyncIterator[str]:
+    start = time.time()
+    ttft_ms: Optional[int] = None
+    tool_names: list[str] = []
+    answer_chars = 0
+
     try:
-        print(f"[generate_sse_stream] START - session_id: {request.session_id}", flush=True)
-        start_time = time.time()
+        lecture = load_lecture(request.lesson_id)
 
-        # Khởi tạo state
-        initial_state: AgentState = {
-            "session_id": request.session_id,
-            "message": request.message,
-            "lesson_id": request.lesson_id,
-            "slide_id": request.slide_id,
-            "page": request.page,
-            "chunks": [],
-            "answer": "",
-            "suggested_questions": [],
-            "citations": [],
-            "metadata": {},
-        }
+        async for kind, payload in run_tutor(
+            lesson_id=request.lesson_id,
+            page=page,
+            message=request.message,
+            session_id=request.session_id,
+        ):
+            if kind == "meta":
+                yield _sse(
+                    "metadata",
+                    {
+                        "session_id": request.session_id,
+                        "slide_id": request.slide_id,
+                        "page": page,
+                        "lesson_id": payload["lesson_id"],
+                        "total_pages": payload["total_pages"],
+                        "model": MODEL,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
 
-        # Gọi graph
-        print(f"[generate_sse_stream] Invoking chat_graph...", flush=True)
-        result = chat_graph.invoke(initial_state)
-        retrieval_time = int((time.time() - start_time) * 1000)
+            elif kind == "token":
+                if ttft_ms is None:
+                    ttft_ms = int((time.time() - start) * 1000)
+                answer_chars += len(payload)
+                yield _sse("token", {"text": payload})
 
-        answer_text = result.get("answer", "")
-        chunks = result.get("chunks", [])
-        chunks_count = len(chunks)
-        questions_count = len(result.get("suggested_questions", []))
+            elif kind == "tool_use":
+                tool_names.append(payload["name"])
+                yield _sse("tool_use", payload)
 
-        # Log retrieval details
-        retrieval_scope = result.get("retrieval_scope", "unknown")
-        print(f"""
-╭─ [Retrieval] Chunks Retrieved (scope: {retrieval_scope})
-│  total_chunks: {chunks_count}""", flush=True)
-        for i, chunk in enumerate(chunks, 1):
-            chunk_id = chunk.get("chunk_id", "N/A")
-            source = chunk.get("source", "N/A")
-            page = chunk.get("page", "N/A")
-            confidence = chunk.get("confidence", 0.0)
-            text = chunk.get("text", "") or chunk.get("content", "")
-            preview = text[:100].replace('\n', ' ') if text else "N/A"
-            score_display = f"{confidence:.4f}" if confidence and confidence > 0 else "N/A"
-            print(f"│  [{i}] id: {chunk_id}, source: {source}, page: {page}, rrf_score: {score_display}", flush=True)
-            print(f"│      text: {preview}{'...' if len(text) > 100 else ''}", flush=True)
+            elif kind == "citations":
+                # Chỉ những trang thật tồn tại đi ra tới đây — extract_citations đã lọc
+                for citation_page in payload:
+                    yield _sse(
+                        "citation",
+                        {
+                            "page": citation_page,
+                            "lesson_id": lecture.lesson_id,
+                            "title": dict(lecture.outline).get(citation_page),
+                        },
+                    )
 
-        answer_preview = answer_text[:200].replace('\n', ' ') if answer_text else "(empty)"
-        print(f"""
-╭─ [Response] Received
-│  retrieval_time: {retrieval_time}ms
-│  answer: {answer_preview}{'...' if len(answer_text) > 200 else ''}
-│  chunks_count: {chunks_count}
-│  suggestions_count: {questions_count}
-╰─""", flush=True)
+            elif kind == "suggestions":
+                yield _sse("suggestions", {"questions": payload})
 
-        # Yield metadata đầu tiên
-        metadata = {
-            "session_id": request.session_id,
-            "slide_id": request.slide_id,
-            "page": request.page,
-            "retrieval_time_ms": retrieval_time,
-            "model": "gpt-4o-mini",
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
-        yield f'event: metadata\ndata: {json.dumps(metadata)}\n\n'
+            elif kind == "stats":
+                logger.info(
+                    "session=%s lesson=%s page=%s ttft=%sms total=%dms "
+                    "llm_calls=%d tools=%s chars=%d",
+                    request.session_id,
+                    request.lesson_id,
+                    page,
+                    ttft_ms,
+                    int((time.time() - start) * 1000),
+                    payload["llm_calls"],
+                    tool_names or "none",
+                    answer_chars,
+                )
+                yield _sse(
+                    "done",
+                    {
+                        "status": "complete",
+                        "ttft_ms": ttft_ms,
+                        "total_ms": int((time.time() - start) * 1000),
+                        "llm_calls": payload["llm_calls"],
+                        "tools_used": tool_names,
+                    },
+                )
 
-        # Yield tokens từ answer
-        for token in answer_text.split():
-            yield f'event: token\ndata: {json.dumps({"text": token + " "})}\n\n'
-            await asyncio.sleep(0.05)
-
-        # Yield citations từ chunks (kèm page number)
-        for chunk in result.get("chunks", []):
-            citation_data = {
-                "chunk_id": chunk.get("chunk_id", ""),
-                "source": chunk.get("source", ""),
-                "page": chunk.get("page"),
-                "confidence": chunk.get("confidence", 0.95),
-            }
-            yield f'event: citation\ndata: {json.dumps(citation_data)}\n\n'
-
-        # Yield suggested questions
-        questions_data = {"questions": result.get("suggested_questions", [])}
-        yield f'event: suggestions\ndata: {json.dumps(questions_data)}\n\n'
-
-        # Yield done
-        yield f'event: done\ndata: {json.dumps({"status": "complete"})}\n\n'
-
-    except Exception as e:
-        print(f"[generate_sse_stream] ERROR: {str(e)}", flush=True)
-        error_data = {"message": str(e), "error_type": "generation_error"}
-        yield f'event: error\ndata: {json.dumps(error_data)}\n\n'
+    except Exception as exc:  # noqa: BLE001 — stream đã mở, không raise được nữa
+        logger.exception("Lỗi khi stream session=%s", request.session_id)
+        yield _sse(
+            "error",
+            {"message": str(exc), "error_type": type(exc).__name__},
+        )
 
 
 @router.post("/chat")
 async def chat(request: ChatRequest):
-    """Streaming chat endpoint — SSE."""
-    print(f"""
-╭─ [POST /chat] Request
-│  session_id: {request.session_id}
-│  lesson_id: {request.lesson_id}
-│  slide_id: {request.slide_id}
-│  page: {request.page}
-│  message: {request.message[:80]}
-╰─""", flush=True)
+    """Hỏi đáp về bài giảng đang học — SSE."""
+    try:
+        load_lecture(request.lesson_id)  # fail nhanh trước khi mở stream
+    except LectureNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    page = _resolve_page(request)
+    logger.info(
+        "POST /chat session=%s lesson=%s page=%s msg=%r",
+        request.session_id,
+        request.lesson_id,
+        page,
+        request.message[:80],
+    )
+
     return StreamingResponse(
-        generate_sse_stream(request),
+        _stream(request, page),
         media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # chặn nginx buffer làm mất tác dụng stream
+        },
     )

@@ -1,0 +1,866 @@
+/* =========================================================
+   AI PDF Learning Assistant - Design System & Tokens
+   Inspired by: ChatGPT, Notion, Google Drive, Vercel
+   ========================================================= */
+
+:root {
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-bg: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-text: #111827;
+  --color-text-secondary: #6B7280;
+  --color-disabled-bg: #F3F4F6;
+  --color-disabled-text: #9CA3AF;
+  
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px; /* Default requested border radius */
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* =========================================================
+   1. Sticky Header
+   ========================================================= */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 64px;
+  background-color: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.app-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-name-badge {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   2. Buttons
+   ========================================================= */
+.btn {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--color-card);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-bg);
+  border-color: #D1D5DB;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: rgba(37, 99, 235, 0.05);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  border-radius: var(--radius-md);
+}
+
+.btn:disabled {
+  background-color: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* =========================================================
+   3. Main Workspace Layout (70% Left / 30% Right)
+   ========================================================= */
+.main-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background-color: var(--color-bg);
+}
+
+.pdf-viewer-section {
+  flex: 0 0 70%;
+  width: 70%;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+  overflow: hidden;
+  position: relative;
+}
+
+.ai-chat-section {
+  flex: 0 0 30%;
+  width: 30%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-card);
+  overflow: hidden;
+}
+
+/* =========================================================
+   4. PDF Viewer & Toolbar
+   ========================================================= */
+.pdf-toolbar {
+  height: 52px;
+  background-color: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.indicator-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding: 0 8px;
+  min-width: 85px;
+  text-align: center;
+}
+
+.viewer-content {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  position: relative;
+  padding: 24px;
+}
+
+/* Empty State (Before Upload) */
+.empty-state {
+  max-width: 420px;
+  background-color: var(--color-card);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 48px 32px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.empty-state.drag-over {
+  border-color: var(--color-primary);
+  background-color: rgba(37, 99, 235, 0.03);
+}
+
+.empty-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.empty-description {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+/* Loading Spinner */
+.loading-spinner-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Canvas Container (Continuous Vertical Slide Feed) */
+.canvas-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+  width: 100%;
+  padding: 24px 0 64px 0;
+}
+
+.slide-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #FFFFFF;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  transition: width 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  width: calc(720px * var(--zoom-level, 1));
+  max-width: 95%;
+}
+
+.slide-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.12), 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.slide-card canvas {
+  border-radius: var(--radius-sm);
+  max-width: 100%;
+  height: auto;
+}
+
+.slide-footer {
+  margin-top: 12px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg);
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  letter-spacing: 0.02em;
+}
+
+/* =========================================================
+   5. AI Chat Panel
+   ========================================================= */
+.chat-header {
+  height: 52px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.chat-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-header-title h2 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.chat-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background-color: rgba(37, 99, 235, 0.1);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Chat Bubbles */
+.chat-bubble {
+  max-width: 88%;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  line-height: 1.5;
+  font-size: 0.875rem;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-bubble.assistant {
+  align-self: flex-start;
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-bubble.user {
+  align-self: flex-end;
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+.bubble-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+.bubble-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Typing Indicator (3 Dots) */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  width: fit-content;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--color-text-secondary);
+  border-radius: 50%;
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.typing-dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Chat Footer & Input */
+.chat-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-card);
+  flex-shrink: 0;
+}
+
+.chat-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 6px 6px 6px 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chat-input-wrapper:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+#chat-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  resize: none;
+  max-height: 100px;
+}
+
+#chat-input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.btn-send {
+  padding: 8px 16px;
+  font-size: 0.8125rem;
+}
+
+.chat-hint {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* =========================================================
+   6. Toast Notifications
+   ========================================================= */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 340px;
+  width: 100%;
+}
+
+.toast {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  animation: toastSlideIn 0.25s ease;
+}
+
+.toast-success {
+  border-left: 4px solid #10B981;
+}
+
+.toast-error {
+  border-left: 4px solid #EF4444;
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================
+   7. Custom Scrollbar
+   ========================================================= */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.3);
+  border-radius: var(--radius-full);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.5);
+}
+
+/* =========================================================
+   8. Responsive Layout (Mobile / Tablet)
+   ========================================================= */
+@media (max-width: 768px) {
+  body {
+    height: auto;
+    overflow: auto;
+  }
+
+  .main-layout {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .pdf-viewer-section {
+    flex: none;
+    width: 100%;
+    height: 65vh;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ai-chat-section {
+    flex: none;
+    width: 100%;
+    height: 70vh;
+  }
+
+  .file-name-badge {
+    max-width: 130px;
+  }
+
+  .app-title {
+    font-size: 0.9375rem;
+  }
+}
+
+/* =========================================================
+   9. Citations, Suggested Questions & Idle Suggestions (SSE Integration)
+   ========================================================= */
+.citation-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.citation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(37, 99, 235, 0.08);
+  color: var(--color-primary);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.citation-badge:hover {
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+.citation-conf {
+  font-size: 0.6875rem;
+  opacity: 0.75;
+  margin-left: 2px;
+}
+
+.suggestions-container {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suggestions-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.suggestion-pill {
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 8px 12px;
+  border-radius: var(--radius-lg);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.suggestion-pill:hover {
+  border-color: var(--color-primary);
+  background-color: rgba(37, 99, 235, 0.04);
+  color: var(--color-primary);
+}
+
+/* Idle Suggestions Banner */
+.idle-suggestion-box {
+  margin: 8px 0;
+  padding: 14px;
+  background-color: #FEF3C7;
+  border: 1px solid #FDE68A;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeIn 0.3s ease;
+}
+
+.idle-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #92400E;
+}
+
+.idle-close {
+  background: none;
+  border: none;
+  font-size: 1.125rem;
+  color: #92400E;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.idle-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.idle-pill {
+  background-color: #FFFFFF;
+  border-color: #FCD34D;
+  color: #78350F;
+}
+
+.idle-pill:hover {
+  background-color: #FFFBEB;
+  border-color: #F59E0B;
+}
+
+/* =========================================================
+   10. Smooth Slide Transitions (Zero Flickering)
+   ========================================================= */
+@keyframes slideInNext {
+  0% {
+    opacity: 0.4;
+    transform: translateY(16px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideInPrev {
+  0% {
+    opacity: 0.4;
+    transform: translateY(-16px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.slide-next {
+  animation: slideInNext 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.slide-prev {
+  animation: slideInPrev 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* =========================================================
+   11. Lesson Selector Dropdown & Backend Status Indicator
+   ========================================================= */
+.lesson-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.lesson-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.lesson-select {
+  background: transparent;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  outline: none;
+  cursor: pointer;
+}
+
+.chat-status-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.api-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.api-status-dot.online {
+  background-color: #10B981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.api-status-dot.offline {
+  background-color: #EF4444;
+}
+
+/* Idle Keywords Pill */
+.idle-keywords-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(146, 64, 14, 0.25);
+}
+
+.idle-keyword-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgba(251, 191, 36, 0.2);
+  color: #92400E;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+/* Markdown Formatting in Bubble Content */
+.bubble-content p {
+  margin-bottom: 8px;
+}
+.bubble-content p:last-child {
+  margin-bottom: 0;
+}
+.bubble-content strong {
+  font-weight: 700;
+}
+.bubble-content ul, .bubble-content ol {
+  margin: 6px 0 8px 20px;
+}
+.bubble-content li {
+  margin-bottom: 4px;
+}
+.bubble-content code {
+  background-color: rgba(0, 0, 0, 0.06);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+

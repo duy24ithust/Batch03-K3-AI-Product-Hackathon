@@ -1,6 +1,24 @@
-# VLearn AI Agent — API Documentation
+# VLearn AI Tutor — API Documentation
 
 **Base URL:** `http://localhost:8000`
+
+## Chạy
+
+```bash
+cd agent
+pip install -r requirements.txt
+python main.py
+```
+
+**Env** (`agent/.env`):
+
+| Biến | Bắt buộc | Mô tả |
+|---|---|---|
+| `OPENAI_API_KEY` | ✅ | Key OpenAI cho `gpt-4o-mini` |
+| `OPENAI_MODEL` | ❌ | Mặc định `gpt-4o-mini` |
+| `TAVILY_API_KEY` | ❌ | Có thì `search_web` dùng Tavily (free 1.000 req/tháng); không có thì tự dùng DuckDuckGo. Tavily lỗi → tự fallback DuckDuckGo |
+
+Startup nạp sẵn cả 5 bài giảng (`md/b1..b5_full_rag_ready.md`) vào RAM.
 
 ---
 
@@ -33,7 +51,7 @@ Gửi câu hỏi, nhận response qua SSE stream (tokens hiện real-time).
 {
   "session_id": "user-123",
   "message": "Machine learning là gì?",
-  "lesson_id": "lesson-01",
+  "lesson_id": "b1",
   "slide_id": "slide-abc123",
   "page": 5
 }
@@ -43,26 +61,27 @@ Gửi câu hỏi, nhận response qua SSE stream (tokens hiện real-time).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `session_id` | string | ✅ | Unique session ID (user login session) |
-| `message` | string | ✅ | User's question/message |
-| `lesson_id` | string | ✅ | Lesson/lecture ID (transcript reference) |
-| `slide_id` | string | ✅ | Slide ID from database (current slide user viewing) |
-| `page` | integer | ❌ | Current page number (1-30). Optional, helps prioritize retrieval from that page |
+| `session_id` | string | ✅ | Unique session ID. Lịch sử 6 turn gần nhất được giữ theo key này |
+| `message` | string | ✅ | Câu hỏi của học viên |
+| `lesson_id` | string | ✅ | Mã bài: `b1`..`b5`. Sai mã → `404` |
+| `slide_id` | string | ✅ | Slide ID từ database. Nếu `page` không có, số trang được tách từ đây (`slide-004` → 4) |
+| `page` | integer | ❌ | Trang học viên đang mở. Agent dùng để biết "chỗ này" là chỗ nào |
 
 **Response: SSE Stream (`text/event-stream`)**
 
 Server sends events in order:
 
 #### Event 1: `metadata`
-Sent first. Contains session info and timing.
+Sent first.
 
 ```
 event: metadata
-data: {"session_id": "user-123", "slide_id": "slide-abc123", "page": 5, "retrieval_time_ms": 145, "model": "gpt-4o-mini", "timestamp": "2026-07-30T12:34:56Z"}
+data: {"session_id": "user-123", "slide_id": "slide-004", "page": 4, "lesson_id": "b1", "total_pages": 83, "model": "gpt-4o-mini", "timestamp": "2026-07-30T12:34:56+00:00"}
 ```
 
 #### Event 2+: `token`
-Streaming tokens from LLM response (word by word).
+Token thật từ LLM, phát ngay khi model sinh ra (không phải chia sẵn rồi nhỏ giọt).
+TTFT thực đo được ~2s.
 
 ```
 event: token
@@ -70,58 +89,78 @@ data: {"text": "Machine "}
 
 event: token
 data: {"text": "learning "}
-
-event: token
-data: {"text": "là "}
 ```
 
-#### Event 3+: `citation`
-Citations extracted from chunks (sources of answer).
+#### `tool_use` (chỉ khi agent quyết định gọi tool)
+Agent tự quyết định — phần lớn turn không có event này (bài giảng đã trong context,
+không cần đi tìm). Xuất hiện khi học viên muốn mở rộng ngoài bài.
+
+```
+event: tool_use
+data: {"name": "search_web", "arguments": "{\"query\":\"few-shot prompting best practices\"}"}
+```
+
+FE có thể hiện badge "🔍 đang tra thêm ngoài bài giảng…", hoặc bỏ qua event này.
+
+#### `citation`
+Số trang được trích dẫn trong câu trả lời. **Chỉ những trang thật tồn tại** — backend
+lọc bỏ trang model bịa ra trước khi gửi.
 
 ```
 event: citation
-data: {"chunk_id": "T01-042", "source": "transcript-01-clean.md", "page": 5, "confidence": 0.95}
+data: {"page": 77, "lesson_id": "b1", "title": "Hai núm vặn chọn từ: temperature & top_p"}
 ```
 
 **Citation Fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `chunk_id` | string | Unique chunk ID (e.g., `T01-042` = Transcript 01, chunk 42) |
-| `source` | string | Source file (e.g., `transcript-01-clean.md`) |
-| `page` | integer | Page number (1-30) — **use this to link to slide in UI** |
-| `confidence` | float | Confidence score (0.0-1.0) — how grounded this citation is |
+| `page` | integer | Số trang — dùng để link tới slide trong UI |
+| `lesson_id` | string | Mã bài (`b1`..`b5`) |
+| `title` | string \| null | Tiêu đề trang, lấy từ outline bài giảng |
 
-**FE Usage:** When user clicks citation, navigate to `slide_id` page X:
+**FE Usage:** khi user click citation, nhảy tới trang đó:
 ```javascript
 onClickCitation(citation) {
-  // Jump to slide page
-  window.location.hash = `#slide/${slideId}/page/${citation.page}`;
-  // or: slidePDFViewer.goToPage(citation.page);
+  slidePDFViewer.goToPage(citation.page);
 }
 ```
 
 #### Event 4: `suggestions`
-Suggested follow-up questions (end of response).
+Đúng 3 câu hỏi gợi ý, sinh trong CÙNG một lời gọi LLM với câu trả lời (không phải
+call thứ hai), nên chúng bám sát điều vừa nói và không tốn thêm latency.
+
+Ba câu khác nhau về chức năng: **(1)** đào sâu chủ đề vừa nói · **(2)** bắc cầu sang
+một trang khác trong bài, kèm số trang thật · **(3)** kiểm tra hiểu.
 
 ```
 event: suggestions
-data: {"questions": ["Làm thế nào để train ML model?", "Overfitting là gì?", "Feature engineering quan trọng sao?"]}
+data: {"questions": ["Vì sao temperature=0 lại cho câu trả lời máy móc?", "Trang 78 nói về streaming — liên quan thế nào tới hai tham số này?", "Bạn thử nói lại bằng lời của mình: khác biệt chính giữa temperature và top_p là gì?"]}
 ```
 
 #### Event 5: `done`
-Stream complete.
+Stream complete, kèm số đo của turn.
 
 ```
 event: done
-data: {"status": "complete"}
+data: {"status": "complete", "ttft_ms": 2011, "total_ms": 8163, "llm_calls": 1, "tools_used": []}
 ```
 
-#### Error Event (if exception)
+| Field | Description |
+|-------|-------------|
+| `ttft_ms` | Time-to-first-token (ms) |
+| `total_ms` | Tổng thời gian của turn |
+| `llm_calls` | Số lời gọi LLM. `1` khi không dùng tool, `2` khi agent tra web |
+| `tools_used` | Tên các tool agent đã gọi |
+
+#### Error Event (nếu có exception giữa stream)
 ```
 event: error
-data: {"message": "Cannot find relevant information in documents", "error_type": "no_grounding"}
+data: {"message": "...", "error_type": "RuntimeError"}
 ```
+
+`lesson_id` sai (không thuộc `b1`..`b5`) trả về **HTTP 404** trước khi stream mở, không
+phải error event.
 
 ---
 
@@ -135,8 +174,8 @@ When user idle (inactive) on a page for N seconds, frontend calls this to get co
 ```json
 {
   "session_id": "user-123",
-  "lesson_id": "lesson-01",
-  "slide_id": "slide-abc123",
+  "lesson_id": "b1",
+  "slide_id": "slide-033",
   "idle_seconds": 45
 }
 ```
@@ -145,22 +184,29 @@ When user idle (inactive) on a page for N seconds, frontend calls this to get co
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `session_id` | string | ✅ | User session ID |
-| `lesson_id` | string | ✅ | Lesson ID |
-| `slide_id` | string | ✅ | Slide ID (current page) |
-| `idle_seconds` | integer | ✅ | How long user was idle (seconds) |
+| `session_id` | string | ✅ | User session ID. Endpoint này KHÔNG ghi vào lịch sử hội thoại |
+| `lesson_id` | string | ✅ | Mã bài `b1`..`b5` |
+| `slide_id` | string | ✅ | Slide ID — số trang được tách từ đây |
+| `idle_seconds` | integer | ✅ | Học viên đã dừng bao lâu (giây) |
 
 **Response (JSON, not streaming):**
 ```json
 {
   "questions": [
-    "Bạn có thể giải thích tại sao feature engineering quan trọng?",
-    "Sự khác biệt giữa supervised và unsupervised là gì?",
-    "Làm thế nào để lựa chọn model phù hợp?"
+    "Bạn có thể giải thích tại sao việc chú ý đến các token trước đó lại quan trọng trong việc hiểu ngữ nghĩa không?",
+    "Trang 34 có nói về việc nhìn lân cận hay nhìn toàn cảnh. Bạn có thể diễn đạt mối liên hệ giữa trang 33 và điều đó không?",
+    "Theo bạn, token trong một câu dài có thể gây khó khăn gì trong việc hiểu ngữ cảnh?"
   ],
-  "keywords": ["feature", "engineering", "supervised", "unsupervised"]
+  "keywords": [
+    "Minh họa khái niệm: token \"nó\" cần \"chú ý\" (attention) tới token nào để hiểu đúng nghĩa?",
+    "Nhìn lân cận hay nhìn toàn cảnh?",
+    "Multi-head: cùng một câu, nhiều con mắt chuyên môn nhìn song song"
+  ]
 }
 ```
+
+`keywords` là tiêu đề trang đang xem + 2 trang kế, lấy từ outline bài giảng — dùng làm
+chip chủ đề trên UI.
 
 **Response Parameters:**
 
@@ -192,7 +238,7 @@ const response = await fetch('http://localhost:8000/chat', {
   body: JSON.stringify({
     session_id: 'user-123',
     message: 'Machine learning là gì?',
-    lesson_id: 'lesson-01',
+    lesson_id: 'b1',
     slide_id: 'slide-abc123',
     page: 5  // User currently viewing page 5
   })
@@ -277,7 +323,7 @@ function resetIdleTimer() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         session_id: 'user-123',
-        lesson_id: 'lesson-01',
+        lesson_id: 'b1',
         slide_id: 'slide-abc123',
         idle_seconds: IDLE_THRESHOLD_SECONDS
       })
@@ -329,59 +375,56 @@ if (eventType === 'error') {
 ```json
 {
   "session_id": "user-abc123",
-  "message": "Tóm tắt machine learning từ trang 5 đến 10",
-  "lesson_id": "lesson-01",
-  "slide_id": "slide-xyz789",
-  "page": 5
+  "message": "tôi chưa hiểu chỗ này",
+  "lesson_id": "b1",
+  "slide_id": "slide-004",
+  "page": 4
 }
 ```
+
+Lưu ý: câu hỏi trỏ trực tiếp ("chỗ này") không cần thêm thông tin gì — agent biết trang
+đang mở nên giảng lại đúng trang đó. Đây là ~30% traffic thật của tutor.
 
 ### Backend responds (SSE stream):
 ```
 event: metadata
-data: {"session_id": "user-abc123", "slide_id": "slide-xyz789", "page": 5, "retrieval_time_ms": 200, "model": "gpt-4o-mini", "timestamp": "2026-07-30T12:00:00Z"}
+data: {"session_id": "user-abc123", "slide_id": "slide-004", "page": 4, "lesson_id": "b1", "total_pages": 83, "model": "gpt-4o-mini", "timestamp": "2026-07-30T12:00:00+00:00"}
 
 event: token
-data: {"text": "Machine "}
+data: {"text": "Hôm "}
 
 event: token
-data: {"text": "learning "}
+data: {"text": "nay "}
 
 event: token
-data: {"text": "là "}
+data: {"text": "chúng "}
 
 event: token
-data: {"text": "quá "}
+data: {"text": "ta "}
 
 event: token
-data: {"text": "trình "}
+data: {"text": "sẽ "}
 
 event: token
-data: {"text": "máy "}
-
-event: token
-data: {"text": "học "}
+data: {"text": "đi "}
 
 event: token
 data: {"text": "từ "}
 
 event: token
-data: {"text": "dữ "}
+data: {"text": "\"nghe "}
 
 event: token
-data: {"text": "liệu..."}
+data: {"text": "AI\"..."}
 
 event: citation
-data: {"chunk_id": "T01-005", "source": "transcript-01-clean.md", "page": 5, "confidence": 0.98}
-
-event: citation
-data: {"chunk_id": "T01-042", "source": "transcript-01-clean.md", "page": 10, "confidence": 0.96}
+data: {"page": 4, "lesson_id": "b1", "title": "Hôm nay mình đi từ \"nghe AI\" đến \"gọi AI\""}
 
 event: suggestions
-data: {"questions": ["Các loại ML algorithms là gì?", "Cách train model hiệu quả?", "Làm sao detect overfitting?"]}
+data: {"questions": ["Bạn có muốn tìm hiểu sâu hơn về khái niệm LLM không?", "Nếu bạn quan tâm đến việc xây dựng chatbot, hãy xem trang 74 — nơi giải thích cách gọi API đầu tiên.", "Bạn có thể diễn đạt lại 4 điều mà buổi học hôm nay sẽ mang lại không?"]}
 
 event: done
-data: {"status": "complete"}
+data: {"status": "complete", "ttft_ms": 2011, "total_ms": 8163, "llm_calls": 1, "tools_used": []}
 ```
 
 ### Frontend displays:
@@ -416,7 +459,7 @@ curl -N -X POST http://localhost:8000/chat \
   -d '{
     "session_id": "test-1",
     "message": "Machine learning là gì?",
-    "lesson_id": "lesson-01",
+    "lesson_id": "b1",
     "slide_id": "slide-abc",
     "page": 5
   }'

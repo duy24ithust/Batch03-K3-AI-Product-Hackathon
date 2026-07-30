@@ -1,13 +1,14 @@
+from typing import List, Optional
+
 from pydantic import BaseModel
-from typing import Optional, List
 
 
 class ChatRequest(BaseModel):
     session_id: str
     message: str
-    lesson_id: str
-    slide_id: str                    # Slide ID from database
-    page: Optional[int] = None       # Current page user viewing (1-30)
+    lesson_id: str                   # b1..b5
+    slide_id: str                    # Slide ID từ database
+    page: Optional[int] = None       # Trang học viên đang mở
 
 
 class IdleSuggestRequest(BaseModel):
@@ -18,18 +19,19 @@ class IdleSuggestRequest(BaseModel):
 
 
 class CitationInfo(BaseModel):
-    chunk_id: str
-    source: str
-    page: Optional[int] = None       # Page number trong slide (1-30)
-    text_snippet: Optional[str] = None
-    confidence: float = 0.95
+    """Trích dẫn = số trang. Không còn chunk_id/confidence vì không còn retrieval."""
+
+    page: int
+    lesson_id: str
+    title: Optional[str] = None
 
 
 class ResponseMetadata(BaseModel):
     session_id: str
     slide_id: str
     page: Optional[int] = None
-    retrieval_time_ms: int = 0
+    lesson_id: Optional[str] = None
+    total_pages: Optional[int] = None
     model: str = "gpt-4o-mini"
     timestamp: Optional[str] = None
 

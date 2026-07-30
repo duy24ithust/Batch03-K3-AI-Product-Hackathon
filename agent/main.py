@@ -1,10 +1,13 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-from routers import chat_router, idle_router
-from models.schemas import HealthResponse
 import logging
 import sys
+from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from models.schemas import HealthResponse
+from routers import chat_router, idle_router
 
 # Load environment variables
 load_dotenv()
@@ -16,7 +19,29 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 
-app = FastAPI(title="VLearn AI Agent")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Parse sẵn các bài giảng để request đầu tiên không phải chờ đọc file."""
+    from core.lecture import LectureNotFound, load_lecture
+
+    for lesson_id in ("b1", "b2", "b3", "b4", "b5"):
+        try:
+            lecture = load_lecture(lesson_id)
+            logger.info(
+                "Đã nạp %s: %d trang, %d ký tự context",
+                lesson_id,
+                lecture.total_pages,
+                len(lecture.as_context()),
+            )
+        except LectureNotFound as exc:
+            logger.warning("Bỏ qua %s: %s", lesson_id, exc)
+    yield
+
+
+app = FastAPI(title="VLearn AI Tutor", lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
