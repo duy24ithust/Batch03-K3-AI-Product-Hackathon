@@ -8,14 +8,29 @@ if hasattr(sys.stdout, 'reconfigure'):
 from rag.config import OPENROUTER_API_KEY, DEFAULT_MODEL, FALLBACK_MODELS
 
 class LLMService:
-    """Xử lý gọi LLM qua OpenRouter API và đảm bảo quy tắc trích dẫn nguồn cho đúng bài học"""
+    """Xử lý gọi LLM qua OpenRouter API / Mistral API và đảm bảo quy tắc trích dẫn nguồn cho đúng bài học"""
 
-    def __init__(self, api_key: str = OPENROUTER_API_KEY):
-        if not api_key:
-            raise ValueError("[ERROR] Khong tim thay OPENROUTER_API_KEY trong file .env!")
+    def __init__(self, api_key: str = None):
+        import os
+        self.api_key = api_key or OPENROUTER_API_KEY or os.getenv("OPENAI_API_KEY") or os.getenv("MISTRAL_API_KEY")
+        
+        if not self.api_key:
+            raise ValueError("[ERROR] Chưa cấu hình API Key (OPENROUTER_API_KEY, MISTRAL_API_KEY hoặc OPENAI_API_KEY) trong file .env!")
+        
+        # Xác định base_url phù hợp
+        if OPENROUTER_API_KEY:
+            self.base_url = "https://openrouter.ai/api/v1"
+            self.default_model = DEFAULT_MODEL
+        elif os.getenv("MISTRAL_API_KEY"):
+            self.base_url = "https://api.mistral.ai/v1"
+            self.default_model = "mistral-small-latest"
+        else:
+            self.base_url = "https://api.openai.com/v1"
+            self.default_model = "gpt-4o-mini"
+
         self.client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
+            base_url=self.base_url,
+            api_key=self.api_key,
         )
 
     def generate_answer(
@@ -26,7 +41,8 @@ class LLMService:
         model: str = None
     ) -> str:
         if model is None:
-            model = DEFAULT_MODEL
+            model = self.default_model
+
             
         context_parts = []
         for item in retrieved_contexts:
@@ -71,7 +87,8 @@ class LLMService:
     def generate_summary(self, lesson_id: str, lesson_chunks: List[Dict], model: str = None) -> str:
         """Tóm tắt toàn bộ cấu trúc và các điểm cốt lõi của bài học"""
         if model is None:
-            model = DEFAULT_MODEL
+            model = self.default_model
+
 
         # Tạo bản tóm tắt tổng quan từ tất cả các trang
         pages_summary = []
