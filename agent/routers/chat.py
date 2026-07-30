@@ -44,20 +44,20 @@ async def generate_sse_stream(request: ChatRequest):
         questions_count = len(result.get("suggested_questions", []))
 
         # Log retrieval details
+        retrieval_scope = result.get("retrieval_scope", "unknown")
         print(f"""
-╭─ [Retrieval] Chunks Retrieved
+╭─ [Retrieval] Chunks Retrieved (scope: {retrieval_scope})
 │  total_chunks: {chunks_count}""", flush=True)
-        for i, chunk in enumerate(chunks[:3], 1):
+        for i, chunk in enumerate(chunks, 1):
             chunk_id = chunk.get("chunk_id", "N/A")
             source = chunk.get("source", "N/A")
             page = chunk.get("page", "N/A")
             confidence = chunk.get("confidence", 0.0)
             text = chunk.get("text", "") or chunk.get("content", "")
             preview = text[:100].replace('\n', ' ') if text else "N/A"
-            print(f"│  [{i}] id: {chunk_id}, source: {source}, page: {page}, confidence: {confidence:.2f}", flush=True)
+            score_display = f"{confidence:.4f}" if confidence and confidence > 0 else "N/A"
+            print(f"│  [{i}] id: {chunk_id}, source: {source}, page: {page}, rrf_score: {score_display}", flush=True)
             print(f"│      text: {preview}{'...' if len(text) > 100 else ''}", flush=True)
-        if chunks_count > 3:
-            print(f"│  ... and {chunks_count - 3} more chunks", flush=True)
 
         answer_preview = answer_text[:200].replace('\n', ' ') if answer_text else "(empty)"
         print(f"""
