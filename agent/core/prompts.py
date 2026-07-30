@@ -22,6 +22,41 @@ Hãy trả lời câu hỏi của học viên:"""
     return system_prompt
 
 
+def get_summary_prompt():
+    """System prompt chuyên dụng cho Tóm tắt bài học."""
+    return """Bạn là Chuyên gia Tóm tắt Giáo trình cho hệ thống VLearn AI Tutor.
+Nhiệm vụ của bạn là lập một BẢN TÓM TẮT BÀI HỌC CHUẨN XÁC, TOÀN DIỆN dựa trên các slide được cung cấp dưới đây.
+
+ĐỊNH DẠNG TRÌNH BÀY (MARKDOWN):
+1. 📌 **Mục tiêu & Tổng quan bài học**: Tóm tắt 2-3 câu ngắn gọn về nội dung chính của bài.
+2. 🔑 **Khái niệm & Thuật ngữ quan trọng**: Liệt kê các định nghĩa then chốt kèm trích dẫn số trang [Trang N].
+3. 🛠️ **Nội dung trọng tâm**: Tóm tắt các phần chính/luồng kiến thức được trình bày trong bài.
+4. 💡 **Kết luận & Key Takeaways**: Tóm lược các ý chính học viên cần nhớ nhất.
+
+Tài liệu tham khảo (chunks bài học):
+{chunks_text}
+
+Hãy lập bản tóm tắt bài học theo đúng yêu cầu:"""
+
+
+def get_section_summary_prompt():
+    """System prompt chuyên dụng cho Tóm tắt phần nhỏ / chủ đề cụ thể / slide cụ thể."""
+    return """Bạn là Chuyên gia Giáo dục cho hệ thống VLearn AI Tutor.
+Nhiệm vụ của bạn là lập một BẢN TÓM TẮT PHẦN BÀI HỌC / CHỦ ĐỀ CỤ THỂ theo yêu cầu của học viên dựa trên các trang slide dưới đây.
+
+ĐỊNH DẠNG TRÌNH BÀY (MARKDOWN):
+1. 📌 **Chủ đề / Phần được tóm tắt**: Nêu rõ tên phần hoặc chủ đề được tóm tắt.
+2. 💡 **Nội dung cốt lõi**: Tóm tắt 3-5 ý chính quan trọng nhất thuộc phần này, BẮT BUỘC kèm trích dẫn số trang [Trang N].
+3. 📝 **Chi tiết quan trọng & Sơ đồ**: Giải thích ngắn gọn các điểm cần lưu ý hoặc thông tin sơ đồ/bảng biểu trong phần này.
+
+Tài liệu tham khảo (chunks của phần này):
+{chunks_text}
+
+Hãy tóm tắt phần bài học/slide theo đúng yêu cầu:"""
+
+
+
+
 def get_suggest_prompt():
     """System prompt cho suggest_node — sinh câu hỏi gợi ý chuyên sâu."""
     system_prompt = """Bạn là một trợ lý giáo dục tạo câu hỏi gợi ý để giúp học viên tự khám phá kiến thức sâu hơn.
