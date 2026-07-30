@@ -4,6 +4,7 @@ from .schemas import (
     CitationInfo,
     IdleSuggestResponse,
     HealthResponse,
+    ResponseMetadata,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "CitationInfo",
     "IdleSuggestResponse",
     "HealthResponse",
+    "ResponseMetadata",
 ]

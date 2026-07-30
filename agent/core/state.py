@@ -12,8 +12,11 @@ class Chunk(BaseModel):
 class AgentState(TypedDict):
     session_id: str
     lesson_id: str
-    slide_id: Optional[str]
+    slide_id: str
+    page: Optional[int]              # Current page user viewing (1-30)
     message: str
     chunks: List[Chunk]
     answer: str
     suggested_questions: List[str]
+    citations: List[dict]            # Citations with page numbers
+    metadata: dict                   # Response metadata
