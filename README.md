@@ -1,6 +1,40 @@
-# Mini Hackathon AI — Batch 03
+# Mini Hackathon AI — Batch 03 · Nhóm 04 (Zone A)
+
+## Dự án: VLearn AI Tutor Full-Context & Direct Lookup
+
+### Danh Sách Thành Viên & Phân Công Nhiệm Vụ
+
+| Thành viên | Mã học viên | Vai trò | Phần việc phụ trách có tên trong Repo |
+|---|---|---|---|
+| **Đậu Quốc Duy** | 2A202601445 | AI Agent & Backend Engineer | Phát triển `agent/` codebase (`main.py`, `core/agent.py`, `core/lecture.py`, `core/prompts.py`, `core/tools.py`), SSE Streaming, Single-Agent Loop |
+| **Nguyễn Đăng Nam** | 2A202601307 | OCR Data & Product Spec Lead | Xử lý OCR data bài giảng (`data/vlearn-pack/md/`), viết `spec.md`, thiết kế System Prompt Architecture & HAX/PAIR rules |
+| **Tống Nguyễn Minh Khang** | 2A202601101 | OCR Data & Evaluation Lead | Trích xuất OCR data bài giảng, Mining 1.261 turn chatlog, xây dựng Golden Set `eval/golden_set.json`, script `test_agent.py` |
+| **Lê Chí Anh Tuấn** | 2A202601149 | RAG Experiment & Validation Lead | Dựng & thử nghiệm RAG ban đầu, thực hiện User Test 5 người dùng, lập `validation/feedback_log.md`, quản lý Changelog |
+| **Nguyễn Hữu Tuyền** | 2A202601605 | Frontend UX Engineer | Phát triển `frontend2/` codebase (VLearn React UI, Slide Viewer, SSE Stream Client, 3 Action Chips Component) |
+
+---
+
+## Deliverables & Cấu Trúc Repo
+
+- **`spec.md`**: AI Spec hoàn chỉnh 9 phần theo mẫu `03-template-ai-spec.md` & quality bar.
+- **`eval/`**:
+  - `eval/golden_set.json`: Bộ kiểm thử 22 cases phủ 4 lớp chỗ khó & chatlog thật.
+  - `eval/results.md`: Báo cáo kết quả kiểm thử qua 3 lượt lặp (Đạt **95.5% pass**, TTFT 1.4s).
+- **`validation/`**:
+  - `validation/feedback_log.md`: Nhật ký User Validation trực tiếp với 5 người dùng thật + Changelog impacts.
+- **`reflection/`**:
+  - `reflection/nguyen_dang_nam.md`
+  - `reflection/nguyen_huu_tuyen.md`
+  - `reflection/tong_nguyen_minh_khang.md`
+  - `reflection/dau_quoc_duy.md`
+  - `reflection/le_chi_anh_tuan.md`
+- **`agent/`**: Backend FastAPI AI Tutor (Python 3.10+, OpenAI API, SSE Stream, Tavily Search, Prompt Caching).
+- **`frontend2/`**: Prototype Working Frontend VLearn Slide Viewer + AI Tutor UI.
+
+---
 
 **SPEC → Prototype → Demo.** Đây không phải cuộc thi code — đây là cuộc thi **tư duy sản phẩm AI**.
+
 
 - Thời lượng: **1,5 ngày** (một ngày build + một buổi demo)
 - Nhóm: **4-5 người** · zone tối đa 5 nhóm · thi theo lớp

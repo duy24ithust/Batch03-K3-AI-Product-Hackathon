@@ -424,7 +424,8 @@ window.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------
 // 9. AI Chat Functionality & Real SSE Streaming Backend Integration
 // ---------------------------------------------------------
-const BACKEND_URL = 'http://localhost:8000';
+// Cấu hình qua window.BACKEND_URL (đặt trong <script> trước app.js) hoặc mặc định localhost:8000
+const BACKEND_URL = window.BACKEND_URL || 'http://localhost:8000';
 const DEFAULT_SESSION_ID = 'user-vlearn-01';
 const DEFAULT_LESSON_ID = 'b1';
 const DEFAULT_SLIDE_ID = 'slide-abc123';

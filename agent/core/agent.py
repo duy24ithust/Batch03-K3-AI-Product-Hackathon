@@ -54,7 +54,7 @@ def get_client() -> AsyncOpenAI:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise RuntimeError("Thiếu OPENAI_API_KEY trong môi trường (agent/.env)")
-        _client = AsyncOpenAI(api_key=api_key)
+        _client = AsyncOpenAI(api_key=api_key, timeout=60.0, max_retries=3)
     return _client
 
 
