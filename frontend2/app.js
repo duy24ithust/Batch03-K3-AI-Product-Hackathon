@@ -225,6 +225,7 @@ async function loadLessonPdf(lessonId) {
   }
 
   state.lessonId = lessonId;
+  currentSessionId = generateSessionId(); // Reset chat history per lesson
   if (elements.lessonSelect) elements.lessonSelect.value = lessonId;
 
   const label = elements.lessonSelect
@@ -425,8 +426,12 @@ window.addEventListener('keydown', (e) => {
 // 9. AI Chat Functionality & Real SSE Streaming Backend Integration
 // ---------------------------------------------------------
 // Cấu hình qua window.BACKEND_URL (đặt trong <script> trước app.js) hoặc mặc định localhost:8000
+function generateSessionId() {
+  return 'session-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+}
+let currentSessionId = generateSessionId();
+
 const BACKEND_URL = window.BACKEND_URL || 'http://localhost:8000';
-const DEFAULT_SESSION_ID = 'user-vlearn-01';
 const DEFAULT_LESSON_ID = 'b1';
 const DEFAULT_SLIDE_ID = 'slide-abc123';
 
@@ -622,7 +627,7 @@ async function sendChatMessageSSE(messageText, handlers) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        session_id: DEFAULT_SESSION_ID,
+        session_id: currentSessionId,
         message: messageText,
         lesson_id: state.lessonId || DEFAULT_LESSON_ID,
         slide_id: 'slide-' + String(state.pageNumber || 1).padStart(3, '0'),
@@ -829,8 +834,8 @@ function showIdleSuggestionsChip(questions, keywords = []) {
   banner.className = 'idle-suggestion-box';
   banner.innerHTML = `
     <div class="idle-header">
-      <span>✨ Curious about Slide ${state.pageNumber || 1}? Ask the AI Tutor:</span>
-      <button class="idle-close" type="button" title="Close">&times;</button>
+      <span>✨ Gợi ý câu hỏi chủ động cho Trang ${state.pageNumber || 1}:</span>
+      <button class="idle-close" type="button" title="Đóng">&times;</button>
     </div>
     <div class="idle-pills"></div>
   `;

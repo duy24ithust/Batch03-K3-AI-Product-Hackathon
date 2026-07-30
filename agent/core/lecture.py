@@ -9,7 +9,13 @@ import re
 from pathlib import Path
 from typing import Optional
 
-MD_DIR = Path(__file__).resolve().parent.parent.parent / "md"
+_possible_md_dirs = [
+    Path(__file__).resolve().parent.parent / "md",  # agent/md
+    Path(__file__).resolve().parent.parent.parent / "md",  # ../md
+    Path.cwd() / "md",
+    Path.cwd() / "agent" / "md",
+]
+MD_DIR = next((d for d in _possible_md_dirs if d.is_dir()), _possible_md_dirs[0])
 
 # Chỉ nhận b1..b5 — lesson_id đi thẳng vào tên file nên phải chặn path traversal
 _LESSON_ID = re.compile(r"^b[1-5]$")

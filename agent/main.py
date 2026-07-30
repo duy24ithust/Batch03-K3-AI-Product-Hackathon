@@ -57,6 +57,8 @@ app.include_router(chat_router, tags=["chat"])
 app.include_router(idle_router, tags=["suggestion"])
 
 
+@app.get("/", response_model=HealthResponse)
+@app.head("/")
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
