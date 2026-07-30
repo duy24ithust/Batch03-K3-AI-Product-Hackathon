@@ -169,48 +169,53 @@ class RealRetriever(RetrieverInterface):
         print(f"✅ [RealRetriever] Kết nối RAG thành công! {total_chunks} Chunks từ {len(self.chunks_by_lesson)} bài học!")
 
     def _parse_markdown_into_page_chunks(self, text: str, source_filename: str, lesson_key: str) -> List[Chunk]:
-        """Phân tách file Markdown theo thẻ ## [Trang N] hoặc <!-- START PAGE N -->"""
-        pages = re.split(r"(<!--\s*START PAGE\s*\d+\s*-->|##\s*\[Trang\s*\d+\])", text, flags=re.IGNORECASE)
+        """Phân tách file Markdown theo thẻ <!-- START PAGE N --> hoặc ## [Trang N] thành từng trang riêng biệt"""
         chunks = []
-        current_page = 1
-        current_text = []
+        page_blocks = re.split(r"<!--\s*START PAGE\s*(\d+)\s*-->", text, flags=re.IGNORECASE)
 
-        for block in pages:
-            page_match = re.search(r"Trang\s*(\d+)|START PAGE\s*(\d+)", block, re.IGNORECASE)
-            if page_match:
-                if current_text:
-                    full_page_text = "".join(current_text).strip()
-                    full_page_text = re.sub(r"<!--\s*END PAGE\s*\d+\s*-->", "", full_page_text, flags=re.IGNORECASE).strip()
-                    if full_page_text:
+        if len(page_blocks) > 1:
+            for i in range(1, len(page_blocks), 2):
+                page_num = int(page_blocks[i])
+                page_text = page_blocks[i + 1].strip()
+                page_text = re.sub(r"<!--\s*END PAGE\s*\d+\s*-->", "", page_text, flags=re.IGNORECASE).strip()
+                if page_text:
+                    chunks.append(
+                        Chunk(
+                            chunk_id=f"[{lesson_key.upper()} - Trang {page_num}]",
+                            source=source_filename,
+                            text=page_text,
+                            page=page_num,
+                        )
+                    )
+        else:
+            # Thuật toán cắt theo ## [Trang N]
+            page_blocks = re.split(r"##\s*\[Trang\s*(\d+)\]", text, flags=re.IGNORECASE)
+            if len(page_blocks) > 1:
+                for i in range(1, len(page_blocks), 2):
+                    page_num = int(page_blocks[i])
+                    page_text = page_blocks[i + 1].strip()
+                    if page_text:
                         chunks.append(
                             Chunk(
-                                chunk_id=f"[{lesson_key.upper()} - Trang {current_page}]",
+                                chunk_id=f"[{lesson_key.upper()} - Trang {page_num}]",
                                 source=source_filename,
-                                text=full_page_text,
-                                page=current_page,
+                                text=page_text,
+                                page=page_num,
                             )
                         )
-                    current_text = []
-                p_num = page_match.group(1) or page_match.group(2)
-                current_page = int(p_num)
-            else:
-                if not re.search(r"<!--\s*END PAGE", block, re.IGNORECASE):
-                    current_text.append(block)
 
-        if current_text:
-            full_page_text = "".join(current_text).strip()
-            full_page_text = re.sub(r"<!--\s*END PAGE\s*\d+\s*-->", "", full_page_text, flags=re.IGNORECASE).strip()
-            if full_page_text:
-                chunks.append(
-                    Chunk(
-                        chunk_id=f"[{lesson_key.upper()} - Trang {current_page}]",
-                        source=source_filename,
-                        text=full_page_text,
-                        page=current_page,
-                    )
+        if not chunks:
+            chunks.append(
+                Chunk(
+                    chunk_id=f"[{lesson_key.upper()} - Trang 1]",
+                    source=source_filename,
+                    text=text.strip(),
+                    page=1,
                 )
+            )
 
         return chunks
+
 
     def _get_matched_lesson_key(self, lesson_id: str) -> str:
         if not self.chunks_by_lesson:
@@ -226,8 +231,32 @@ class RealRetriever(RetrieverInterface):
 
         return list(self.chunks_by_lesson.keys())[0]
 
-    def retrieve(self, query: str, lesson_id: str, page: Optional[int] = None, top_k: int = 5) -> List[Chunk]:
-        """Truy xuất Chunks bài học bằng Hybrid RAG + Ưu tiên trang học viên đang đứng"""
+    def _expand_neighboring_chunks(self, chunks: List[Chunk], lesson_key: str) -> List[Chunk]:
+        """Tự động bổ sung các slide lân cận (Parent-Child Expansion) cho từng chunk trúng khớp."""
+        all_lesson_chunks = self.chunks_by_lesson.get(lesson_key, [])
+        if not all_lesson_chunks:
+            return chunks
+
+        page_to_chunk = {c.page: c for c in all_lesson_chunks if c.page is not None}
+        expanded_chunks = []
+        seen_pages = set()
+
+        for c in chunks:
+            if c.page is not None:
+                # Thêm slide trước (N-1), slide hiện tại (N), slide sau (N+1)
+                for p in [c.page - 1, c.page, c.page + 1]:
+                    if p in page_to_chunk and p not in seen_pages:
+                        seen_pages.add(p)
+                        expanded_chunks.append(page_to_chunk[p])
+            else:
+                expanded_chunks.append(c)
+
+        # Sắp xếp lại theo thứ tự số trang cho liền mạch
+        expanded_chunks.sort(key=lambda x: x.page if x.page is not None else 0)
+        return expanded_chunks
+
+    def retrieve(self, query: str, lesson_id: str, page: Optional[int] = None, top_k: int = 5, expand_neighbors: bool = True) -> List[Chunk]:
+        """Truy xuất Chunks bài học bằng Hybrid RAG + Ưu tiên trang học viên đang đứng + Mở rộng slide lân cận"""
         key = self._get_matched_lesson_key(lesson_id)
         if not key or key not in self.chunks_by_lesson:
             print(f"⚠️ [RealRetriever] Không tìm thấy bài học phù hợp cho lesson_id='{lesson_id}'")
@@ -268,7 +297,14 @@ class RealRetriever(RetrieverInterface):
                     others.append(c)
             matched_chunks = prioritized + others
 
-        return matched_chunks[:top_k]
+        # Mở rộng các trang slide lân cận (Parent-Child Expansion)
+        if expand_neighbors:
+            matched_chunks = self._expand_neighboring_chunks(matched_chunks[:top_k], key)
+        else:
+            matched_chunks = matched_chunks[:top_k]
+
+        return matched_chunks
+
 
     def get_slide_context(self, lesson_id: str, slide_id: str) -> Optional[Chunk]:
         key = self._get_matched_lesson_key(lesson_id)

@@ -57,7 +57,7 @@
             padding: 24px 20px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 18px;
             overflow-y: auto;
             box-shadow: var(--shadow-sm);
             z-index: 10;
@@ -99,7 +99,7 @@
         .sidebar-section {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
         }
 
         .sidebar-section label {
@@ -264,7 +264,7 @@
         .message {
             display: flex;
             gap: 12px;
-            max-width: 82%;
+            max-width: 85%;
             animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
@@ -335,6 +335,18 @@
             margin-bottom: 0;
         }
 
+        .bubble h1, .bubble h2, .bubble h3 {
+            margin-top: 14px;
+            margin-bottom: 6px;
+            font-weight: 700;
+            color: #1e1b4b;
+        }
+
+        .bubble h3 {
+            font-size: 15px;
+            color: #4f46e5;
+        }
+
         .bubble ul, .bubble ol {
             margin-left: 20px;
             margin-bottom: 8px;
@@ -352,21 +364,6 @@
         .message.user .bubble code {
             background: rgba(255, 255, 255, 0.2);
             color: white;
-        }
-
-        .bubble pre {
-            background: #0f172a;
-            color: #f8fafc;
-            padding: 12px;
-            border-radius: 8px;
-            overflow-x: auto;
-            margin: 8px 0;
-        }
-
-        .bubble pre code {
-            background: transparent;
-            color: inherit;
-            padding: 0;
         }
 
         /* Citations Badges */
@@ -560,22 +557,34 @@
             <div class="sidebar-section">
                 <label>Chọn Bài Học Nhanh</label>
                 <div class="lesson-chips" id="lessonChips">
-                    <div class="chip active" onclick="selectLesson('b1')">b1</div>
+                    <div class="chip" onclick="selectLesson('b1')">b1</div>
                     <div class="chip" onclick="selectLesson('b2')">b2</div>
                     <div class="chip" onclick="selectLesson('b3')">b3</div>
-                    <div class="chip" onclick="selectLesson('b4')">b4</div>
+                    <div class="chip active" onclick="selectLesson('b4')">b4</div>
                     <div class="chip" onclick="selectLesson('b5')">b5</div>
                 </div>
             </div>
 
             <div class="sidebar-section">
-                <label for="lessonId">Lesson ID / Mã Bài</label>
-                <input type="text" id="lessonId" class="form-control" value="b1" placeholder="Ví dụ: b1, b4...">
+                <label for="lessonId">Mã Bài Học (Lesson ID)</label>
+                <input type="text" id="lessonId" class="form-control" value="b4" placeholder="Ví dụ: b1, b4...">
             </div>
 
             <div class="sidebar-section">
-                <label for="slideId">Slide / Trang Đang Xem</label>
-                <input type="text" id="slideId" class="form-control" value="slide-001" placeholder="Ví dụ: slide-001, page 12">
+                <label for="pageId">📄 Trang Đang Xem (Page Number)</label>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <button type="button" class="chip" onclick="changePage(-1)" style="padding: 8px 12px; font-weight: 700;">-</button>
+                    <input type="number" id="pageId" class="form-control" value="41" min="1" max="100" style="text-align: center; font-weight: 700;">
+                    <button type="button" class="chip" onclick="changePage(1)" style="padding: 8px 12px; font-weight: 700;">+</button>
+                </div>
+                <button type="button" class="chip" onclick="askCurrentPage()" style="margin-top: 6px; width: 100%; background: #e0e7ff; color: var(--primary); border-color: #c7d2fe; font-weight: 600;">
+                    🔍 Hỏi về Trang này
+                </button>
+            </div>
+
+            <div class="sidebar-section" style="display: none;">
+                <label for="slideId">Slide ID</label>
+                <input type="text" id="slideId" class="form-control" value="slide-041">
             </div>
 
             <div class="sidebar-section">
@@ -610,7 +619,7 @@
                     <div class="avatar">🤖</div>
                     <div class="bubble">
                         <p>Xin chào! Tôi là <strong>VLearn AI Tutor</strong>. Tôi đã được nạp toàn bộ slide và biểu đồ bài học.</p>
-                        <p>Hãy chọn bài học ở cột bên trái và gõ câu hỏi của bạn (Nhấn <strong>Enter</strong> để gửi câu hỏi)!</p>
+                        <p>Hãy chọn bài học và trang đang xem ở thanh bên trái, sau đó đặt câu hỏi cho tôi (Nhấn <strong>Enter</strong> để gửi câu hỏi)!</p>
                     </div>
                 </div>
             </div>
@@ -632,6 +641,7 @@
         const SEND_BTN = document.getElementById('sendBtn');
         const LESSON_ID = document.getElementById('lessonId');
         const SLIDE_ID = document.getElementById('slideId');
+        const PAGE_ID = document.getElementById('pageId');
         const SESSION_ID = document.getElementById('sessionId');
         const API_ENDPOINT = document.getElementById('apiEndpoint');
         const STATUS_CARD = document.getElementById('statusCard');
@@ -656,16 +666,32 @@
             });
         }
 
+        function changePage(delta) {
+            let val = parseInt(PAGE_ID.value) || 1;
+            val = Math.max(1, val + delta);
+            PAGE_ID.value = val;
+            SLIDE_ID.value = `slide-${String(val).padStart(3, '0')}`;
+        }
+
+        function askCurrentPage() {
+            const pageNum = PAGE_ID.value || 1;
+            MESSAGE_INPUT.value = `Trang ${pageNum} này đang nói về vấn đề gì?`;
+            sendMessage();
+        }
+
         function formatMarkdown(text) {
             if (!text) return '';
             let formatted = text
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
+                .replace(/^### (.*$)/gim, '<h3 style="margin: 14px 0 6px 0; font-size: 15px; font-weight: 700; color: #4f46e5; display: block;">$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2 style="margin: 16px 0 8px 0; font-size: 16px; font-weight: 700; color: #1e1b4b; display: block;">$1</h2>')
+                .replace(/^# (.*$)/gim, '<h1 style="margin: 18px 0 10px 0; font-size: 18px; font-weight: 700; color: #1e1b4b; display: block;">$1</h1>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/`([^`]+)`/g, '<code>$1</code>')
-                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n\n/g, '</p><p style="margin-top: 8px;">')
                 .replace(/\n/g, '<br>');
             return `<p>${formatted}</p>`;
         }
@@ -680,7 +706,13 @@
 
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
-            bubble.innerHTML = isUser ? `<p>${text}</p>` : formatMarkdown(text);
+            if (isUser) {
+                bubble.innerHTML = `<p>${text}</p>`;
+            } else if (text.includes('typing-dots')) {
+                bubble.innerHTML = text;
+            } else {
+                bubble.innerHTML = formatMarkdown(text);
+            }
 
             msgDiv.appendChild(avatar);
             msgDiv.appendChild(bubble);
@@ -692,6 +724,7 @@
             }
             return bubble;
         }
+
 
         function updateLastMessage(text) {
             if (currentBotBubble) {
@@ -758,7 +791,8 @@
             currentBotBubble = addMessage('<div class="typing-dots"><span></span><span></span><span></span></div>', false);
 
             const endpoint = API_ENDPOINT.value.trim();
-            const slideIdVal = SLIDE_ID.value.trim() || "slide-001";
+            const pageVal = parseInt(PAGE_ID.value) || null;
+            const slideIdVal = `slide-${String(pageVal || 1).padStart(3, '0')}`;
             const lessonIdVal = LESSON_ID.value.trim() || "b1";
 
             const payload = {
@@ -766,6 +800,7 @@
                 message: message,
                 lesson_id: lessonIdVal,
                 slide_id: slideIdVal,
+                page: pageVal,
             };
 
             try {
@@ -852,7 +887,7 @@
         // --- KEYBOARD LISTENER: ENTER TO SEND ---
         MESSAGE_INPUT.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault(); // Ngăn xuống dòng mặc định
+                e.preventDefault();
                 sendMessage();
             }
         });
