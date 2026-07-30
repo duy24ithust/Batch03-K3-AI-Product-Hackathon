@@ -259,8 +259,14 @@ body {
 }
 
 .empty-icon {
-  font-size: 3.5rem;
   margin-bottom: 16px;
+  color: var(--color-primary);
+  opacity: 0.35;
+}
+
+.empty-icon svg {
+  width: 56px;
+  height: 56px;
 }
 
 .empty-title {
@@ -520,14 +526,21 @@ body {
    ========================================================= */
 .toast-container {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  top: 0px; /* dưới header 64px */
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 100;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 10px;
-  max-width: 340px;
-  width: 100%;
+  max-width: 420px;
+  width: max-content;
+  pointer-events: none; /* không chắn click vào slide phía dưới */
+}
+
+.toast-container > * {
+  pointer-events: auto;
 }
 
 .toast {
@@ -553,8 +566,9 @@ body {
   border-left: 4px solid #EF4444;
 }
 
+/* Toast ở top center nên trượt XUỐNG khi vào, ngược lại khi ra */
 @keyframes toastSlideIn {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -647,12 +661,113 @@ body {
   background-color: var(--color-primary);
   color: #FFFFFF;
   transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
 }
 
-.citation-conf {
+.citation-badge:active {
+  transform: translateY(0);
+}
+
+/* ---------------------------------------------------------
+   Chip [Trang N] nằm giữa câu trả lời — bấm để nhảy tới trang.
+   Dùng baseline-friendly inline-flex để không phá nhịp dòng chữ.
+   --------------------------------------------------------- */
+.page-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0 2px;
+  padding: 1px 7px 1px 5px;
+  vertical-align: baseline;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-primary);
+  background-color: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: var(--radius-full, 999px);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease,
+    border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.page-ref:hover {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
+}
+
+.page-ref:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.page-ref:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Danh sách trong câu trả lời (formatMarkdown sinh <ul><li>) */
+.bubble-content ul {
+  margin: 6px 0 6px 2px;
+  padding-left: 18px;
+  list-style: none;
+}
+
+.bubble-content li {
+  position: relative;
+  margin-bottom: 5px;
+  line-height: 1.6;
+}
+
+.bubble-content li::before {
+  content: '';
+  position: absolute;
+  left: -13px;
+  top: 0.58em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  opacity: 0.55;
+}
+
+/* Agent đang gọi tool — chỉ hiện khi bài giảng không đủ để trả lời */
+.tool-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 5px 11px;
+  background-color: rgba(217, 119, 6, 0.1);
+  color: #B45309;
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  animation: toolPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes toolPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* Số đo mỗi turn — "1 lượt gọi mô hình" nghĩa là không phải đi tìm gì cả */
+.turn-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border);
   font-size: 0.6875rem;
+  color: var(--color-text-secondary);
   opacity: 0.75;
-  margin-left: 2px;
 }
 
 .suggestions-container {
@@ -663,10 +778,14 @@ body {
 }
 
 .suggestions-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--color-text-secondary);
 }
+
 
 .suggestion-pill {
   background-color: var(--color-bg);

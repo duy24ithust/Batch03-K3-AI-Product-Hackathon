@@ -39,8 +39,13 @@ _client: Optional[AsyncOpenAI] = None
 _CITATION = re.compile(r"\[Trang (\d+)\]")
 _SUGGESTION_LINE = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*(.+?)\s*$")
 
-# Giữ lại đủ ký tự cuối buffer để thẻ <suggestions> không bị cắt giữa hai chunk
-_TAG_GUARD = len(SUGGESTIONS_OPEN) + 4
+# Mốc bắt đầu khối gợi ý. Nhận CẢ thẻ đóng vì gpt-4o-mini thỉnh thoảng phát
+# `</suggestions>` trước danh sách (quên thẻ mở) — bắt cả hai thì khối gợi ý không
+# lọt ra ngoài phần text người học đọc.
+_SUGG_START = re.compile(r"</?suggestions>", re.I)
+
+# Giữ lại đủ ký tự cuối buffer để thẻ không bị cắt giữa hai chunk
+_TAG_GUARD = len(SUGGESTIONS_CLOSE) + 4
 
 
 def get_client() -> AsyncOpenAI:
@@ -54,8 +59,12 @@ def get_client() -> AsyncOpenAI:
 
 
 def _parse_suggestions(raw: str) -> list[str]:
-    """Tách 3 câu gợi ý từ phần tail sau <suggestions>."""
-    raw = raw.split(SUGGESTIONS_CLOSE)[0]
+    """Tách 3 câu gợi ý từ phần tail sau thẻ suggestions.
+
+    Bỏ mọi thẻ `<suggestions>` / `</suggestions>` còn sót trong tail (model đôi khi
+    phát thẻ đóng ở cả đầu và cuối khối) trước khi đọc từng dòng gạch đầu dòng.
+    """
+    raw = _SUGG_START.sub("", raw)
     questions = []
     for line in raw.splitlines():
         match = _SUGGESTION_LINE.match(line)
@@ -170,8 +179,9 @@ async def _stream_turn(
 
         buffer += delta.content
 
-        if SUGGESTIONS_OPEN in buffer:
-            head, _, tail = buffer.partition(SUGGESTIONS_OPEN)
+        marker = _SUGG_START.search(buffer)
+        if marker:
+            head, tail = buffer[: marker.start()], buffer[marker.end() :]
             if head:
                 answer_parts.append(head)
                 if emitting:

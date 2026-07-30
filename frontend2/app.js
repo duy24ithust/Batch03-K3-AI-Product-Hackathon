@@ -29,7 +29,7 @@ const state = {
   zoom: 1.0,
   isRendering: false,
   isChatLoading: false,
-  lessonId: 'lesson-01'
+  lessonId: 'b1'
 };
 
 // ---------------------------------------------------------
@@ -84,7 +84,8 @@ function showToast(message, type = 'success') {
 
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translateY(12px)';
+    // Toast ở top center → trượt LÊN khi ẩn, cùng hướng với lúc xuất hiện
+    toast.style.transform = 'translateY(-12px)';
     toast.style.transition = 'all 0.3s ease';
     setTimeout(() => {
       if (toast.parentNode) {
@@ -211,6 +212,58 @@ function scrollToSlide(num) {
   }
 }
 
+/**
+ * Nạp slide của một bài giảng từ slide/{lessonId}.pdf.
+ *
+ * lessonId trùng mã bài backend dùng (b1..b5), nên trang trên UI và trang agent
+ * đang đọc luôn là cùng một trang — citation "[Trang 60]" nhảy đúng chỗ.
+ */
+async function loadLessonPdf(lessonId) {
+  if (typeof pdfjsLib === 'undefined') {
+    showToast('pdf.js chưa nạp được, kiểm tra kết nối mạng', 'error');
+    return;
+  }
+
+  state.lessonId = lessonId;
+  if (elements.lessonSelect) elements.lessonSelect.value = lessonId;
+
+  const label = elements.lessonSelect
+    ? elements.lessonSelect.options[elements.lessonSelect.selectedIndex].text
+    : lessonId;
+
+  elements.fileNameDisplay.textContent = `${lessonId}.pdf`;
+  elements.fileNameDisplay.style.display = 'inline-block';
+  setUiLoading(true, `Đang nạp ${label}…`);
+
+  const url = `slide/${lessonId}.pdf`;
+  try {
+    // Truyền dạng object (không phải string) cho nhất quán với nhánh upload,
+    // và fetch trước để phân biệt lỗi mạng/404 với lỗi parse PDF.
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status} khi tải ${url}`);
+
+    const buf = await res.arrayBuffer();
+    state.pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    state.numPages = state.pdfDoc.numPages;
+    state.pageNumber = 1;
+    state.pdfFile = null;
+
+    await renderAllSlides();
+    showToast(`${label} — ${state.numPages} trang`, 'success');
+  } catch (err) {
+    console.error(`Không nạp được ${url}:`, err);
+    setUiLoading(false);
+    elements.emptyState.style.display = 'block';
+
+    // file:// chặn fetch vì CORS — đây là nguyên nhân phổ biến nhất, nên nói rõ
+    const hint =
+      window.location.protocol === 'file:'
+        ? 'Đang mở bằng file:// nên trình duyệt chặn đọc PDF. Chạy: cd frontend2 && python3 -m http.server 3000 rồi mở http://localhost:3000'
+        : err.message || 'Lỗi không rõ';
+    showToast(`Không nạp được ${url}. ${hint}`, 'error');
+  }
+}
+
 function loadPdfFile(file) {
   if (!file || file.type !== 'application/pdf') {
     showToast('Please upload a valid .pdf file', 'error');
@@ -223,8 +276,8 @@ function loadPdfFile(file) {
 
   const nameLower = file.name.toLowerCase();
   for (let i = 1; i <= 5; i++) {
-    if (nameLower.includes(`b${i}`) || nameLower.includes(`lesson-${i}`) || nameLower.includes(`lesson0${i}`)) {
-      state.lessonId = `lesson-0${i}`;
+    if (nameLower.includes(`b${i}`)) {
+      state.lessonId = `b${i}`;
       if (elements.lessonSelect) elements.lessonSelect.value = state.lessonId;
       break;
     }
@@ -258,11 +311,13 @@ function loadPdfFile(file) {
 // ---------------------------------------------------------
 // 7. Event Listeners - Upload & Drag/Drop
 // ---------------------------------------------------------
-elements.uploadBtn.addEventListener('click', () => {
+// Nút tải lên ở header đã bỏ (slide tự nạp theo bài), nên các listener này là
+// tuỳ chọn — dùng `?.` để app không chết nếu phần tử không tồn tại.
+elements.uploadBtn?.addEventListener('click', () => {
   elements.fileInput.click();
 });
 
-elements.emptyUploadBtn.addEventListener('click', () => {
+elements.emptyUploadBtn?.addEventListener('click', () => {
   elements.fileInput.click();
 });
 
@@ -274,9 +329,10 @@ elements.fileInput.addEventListener('change', (e) => {
 });
 
 if (elements.lessonSelect) {
+  // Đổi bài → nạp luôn slide của bài đó, để nội dung trên màn hình và nội dung
+  // agent đang đọc không bao giờ lệch nhau
   elements.lessonSelect.addEventListener('change', (e) => {
-    state.lessonId = e.target.value;
-    showToast(`Switched RAG lesson context to ${e.target.options[e.target.selectedIndex].text}`, 'success');
+    loadLessonPdf(e.target.value);
   });
 }
 
@@ -370,7 +426,7 @@ window.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------
 const BACKEND_URL = 'http://localhost:8000';
 const DEFAULT_SESSION_ID = 'user-vlearn-01';
-const DEFAULT_LESSON_ID = 'lesson-01';
+const DEFAULT_LESSON_ID = 'b1';
 const DEFAULT_SLIDE_ID = 'slide-abc123';
 
 function scrollToBottom() {
@@ -379,7 +435,7 @@ function scrollToBottom() {
 
 function formatMarkdown(text) {
   if (!text) return '';
-  return text
+  const html = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -388,11 +444,42 @@ function formatMarkdown(text) {
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`(.*?)`/g, '<code>$1</code>')
-    .replace(/^- (.*$)/gim, '• $1<br>')
-    .replace(/^\* (.*$)/gim, '• $1<br>')
+    // [Trang N] trong câu trả lời → chip bấm được để nhảy tới đúng trang đó.
+    // Backend đã lọc bỏ trang model bịa, nên số trang ở đây luôn tồn tại thật.
+    .replace(
+      /\[Trang (\d+)\]/g,
+      (_m, p) =>
+        `<button type="button" class="page-ref" data-page="${p}" ` +
+        `title="Xem trang ${p}">Trang ${p}</button>`
+    )
+    // Danh sách thật thay vì ký tự '•' — trình đọc màn hình hiểu đúng cấu trúc
+    .replace(/^[-*] (.*$)/gim, '<li>$1</li>')
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>');
+
+  // Gom các <li> liền nhau vào một <ul>, dọn <br> dư quanh chúng
+  return html
+    .replace(/(?:<br>\s*)*(<li>[\s\S]*?<\/li>)(?:\s*<br>)*/g, (m) => {
+      const items = m.match(/<li>[\s\S]*?<\/li>/g) || [];
+      return `<ul>${items.join('')}</ul>`;
+    })
+    .replace(/<\/ul>\s*<ul>/g, '');
 }
+
+// Chip [Trang N] được sinh liên tục trong lúc stream, nên bắt click ở container
+// thay vì gắn listener cho từng chip.
+elements.chatMessages.addEventListener('click', (e) => {
+  const chip = e.target.closest('.page-ref');
+  if (!chip) return;
+  const page = parseInt(chip.getAttribute('data-page'), 10);
+  if (!page) return;
+
+  if (state.pdfDoc && page >= 1 && page <= state.numPages) {
+    scrollToSlide(page);
+  } else {
+    showToast(`Trang ${page} không có trong bài đang mở`, 'error');
+  }
+});
 
 function createChatBubble(sender, text = '') {
   const bubble = document.createElement('div');
@@ -400,7 +487,7 @@ function createChatBubble(sender, text = '') {
 
   const header = document.createElement('div');
   header.className = 'bubble-header';
-  header.textContent = sender === 'user' ? 'You' : 'Trợ lý AI';
+  header.textContent = sender === 'user' ? 'Bạn' : 'Trợ lý AI';
 
   const content = document.createElement('div');
   content.className = 'bubble-content';
@@ -435,23 +522,63 @@ function appendCitationBadge(bubbleElem, citation) {
     bubbleElem.appendChild(badgeContainer);
   }
 
+  // Tránh badge trùng khi agent trích cùng một trang nhiều lần
+  if (badgeContainer.querySelector(`[data-page="${citation.page}"]`)) return;
+
   const badge = document.createElement('button');
   badge.className = 'citation-badge';
   badge.type = 'button';
-  const confidencePercent = citation.confidence ? Math.round(citation.confidence * 100) : 95;
-  badge.innerHTML = `📄 Page ${citation.page} <span class="citation-conf">${confidencePercent}%</span>`;
-  badge.title = `Source: ${citation.source || 'transcript-01-clean.md'}`;
+  badge.setAttribute('data-page', citation.page);
+  // Không còn confidence score: backend đã lọc bỏ trang model bịa ra, nên mọi
+  // trang tới đây đều tồn tại thật — không có gì để "ước lượng độ tin".
+  badge.textContent = `Trang ${citation.page}`;
+  if (citation.title) badge.title = citation.title;
 
   badge.addEventListener('click', () => {
     if (citation.page && citation.page >= 1 && citation.page <= state.numPages) {
       scrollToSlide(citation.page);
-      showToast(`Jumped to Slide Page ${citation.page}`, 'success');
+      showToast(`Đã nhảy tới trang ${citation.page}`, 'success');
     } else {
-      showToast(`Citation refers to Page ${citation.page}`, 'success');
+      showToast(`Trích dẫn trỏ tới trang ${citation.page}`, 'success');
     }
   });
 
   badgeContainer.appendChild(badge);
+}
+
+const TOOL_LABELS = {
+  search_web: 'Đang tra thêm ngoài bài giảng…',
+  create_check_question: 'Đang soạn câu hỏi kiểm tra hiểu…'
+};
+
+/** Badge tạm khi agent gọi tool. Phần lớn turn không có — bài giảng đã trong
+ *  context nên agent trả lời trực tiếp, không phải đi tìm. */
+function showToolBadge(bubbleElem, toolName) {
+  removeToolBadge(bubbleElem);
+  const badge = document.createElement('div');
+  badge.className = 'tool-badge';
+  badge.textContent = TOOL_LABELS[toolName] || `Đang chạy ${toolName}…`;
+  bubbleElem.appendChild(badge);
+}
+
+function removeToolBadge(bubbleElem) {
+  const badge = bubbleElem.querySelector('.tool-badge');
+  if (badge) badge.remove();
+}
+
+/** Số đo của turn: llm_calls = 1 nghĩa là agent trả lời thẳng từ bài giảng. */
+function appendTurnStats(bubbleElem, stats) {
+  if (!stats) return;
+  const line = document.createElement('div');
+  line.className = 'turn-stats';
+  const tools =
+    stats.tools_used && stats.tools_used.length
+      ? stats.tools_used.join(', ')
+      : 'không dùng tool';
+  line.textContent =
+    `Chữ đầu ${stats.ttft_ms}ms · tổng ${stats.total_ms}ms · ` +
+    `${stats.llm_calls} lượt gọi mô hình · ${tools}`;
+  bubbleElem.appendChild(line);
 }
 
 function appendSuggestedQuestions(bubbleElem, questions) {
@@ -463,7 +590,7 @@ function appendSuggestedQuestions(bubbleElem, questions) {
     suggestionsContainer.className = 'suggestions-container';
     const label = document.createElement('div');
     label.className = 'suggestions-label';
-    label.textContent = '💡 Suggested follow-ups:';
+    label.textContent = 'Đào sâu thêm';
     suggestionsContainer.appendChild(label);
     bubbleElem.appendChild(suggestionsContainer);
   }
@@ -485,92 +612,95 @@ function appendSuggestedQuestions(bubbleElem, questions) {
 /**
  * SSE Streaming chat service with fallback to mock simulation if server is offline
  */
-async function sendChatMessageSSE(messageText, onToken, onCitation, onSuggestions) {
+async function sendChatMessageSSE(messageText, handlers) {
+  const { onToken, onCitation, onSuggestions, onToolUse, onDone } = handlers;
+
+  let response;
   try {
-    const response = await fetch(`${BACKEND_URL}/chat`, {
+    response = await fetch(`${BACKEND_URL}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         session_id: DEFAULT_SESSION_ID,
         message: messageText,
         lesson_id: state.lessonId || DEFAULT_LESSON_ID,
-        slide_id: "slide-" + String(state.pageNumber || 1).padStart(3, '0'),
+        slide_id: 'slide-' + String(state.pageNumber || 1).padStart(3, '0'),
         page: state.pageNumber || 1
       })
     });
-
-    if (!response.ok || !response.body) {
-      throw new Error(`HTTP error ${response.status}`);
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-
-      for (let i = 0; i < lines.length - 1; i++) {
-        const line = lines[i];
-        if (line.startsWith('event: ')) {
-          const eventType = line.replace('event: ', '').trim();
-          const dataLine = lines[++i];
-
-          if (dataLine && dataLine.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(dataLine.replace('data: ', ''));
-
-              if (eventType === 'token') {
-                onToken(data.text);
-              } else if (eventType === 'citation') {
-                onCitation(data);
-              } else if (eventType === 'suggestions') {
-                onSuggestions(data.questions);
-              } else if (eventType === 'error') {
-                console.error('SSE Error Event:', data);
-                if (data.error_type === 'no_grounding') {
-                  onToken('\n\n❌ *This topic is not covered in the current materials.*');
-                } else {
-                  onToken(`\n\n❌ *${data.message || 'Error processing response.'}*`);
-                }
-              }
-            } catch (err) {
-              console.warn('Could not parse SSE data JSON:', err);
-            }
-          }
-        }
-      }
-      buffer = lines[lines.length - 1];
-    }
   } catch (error) {
-    console.warn('Backend server offline or unreachable, falling back to local simulation:', error);
-    // Smooth demo fallback
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    const fallbackText = `### AI Tutor Response 💬\n\nI analyzed your question regarding slide page ${state.pageNumber || 1}.\n\n- **Answer**: Modern LLM systems use grounded RAG and schema-based tool calling to ensure verifiable accuracy.\n- **Slide Context**: You are viewing slide ${state.pageNumber || 1}.`;
+    // Không giả lập câu trả lời khi backend chết: một câu trả lời trông-như-thật
+    // nhưng bịa còn tệ hơn báo lỗi, vì học viên tin nó.
+    throw new Error(
+      `Không kết nối được AI Tutor (${BACKEND_URL}). ` +
+        'Chạy backend: cd agent && python main.py'
+    );
+  }
 
-    // Simulate token streaming
-    const words = fallbackText.split(' ');
-    for (const word of words) {
-      onToken(word + ' ');
-      await new Promise((r) => setTimeout(r, 45));
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw new Error(`Backend trả về HTTP ${response.status}. ${detail}`.trim());
+  }
+  if (!response.body) {
+    throw new Error('Backend không trả về stream.');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  // Tách theo '\n\n' (ranh giới block SSE) thay vì '\n', để không phụ thuộc
+  // vào việc event/data có nằm liền nhau trong cùng một chunk mạng hay không.
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split('\n\n');
+    buffer = blocks.pop();
+
+    for (const block of blocks) {
+      if (!block.trim()) continue;
+
+      let eventType = 'message';
+      let raw = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) eventType = line.slice(6).trim();
+        else if (line.startsWith('data:')) raw = line.slice(5).trim();
+      }
+      if (!raw) continue;
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (err) {
+        console.warn('Không parse được data SSE:', raw);
+        continue;
+      }
+
+      switch (eventType) {
+        case 'token':
+          onToken(data.text);
+          break;
+        case 'citation':
+          onCitation(data);
+          break;
+        case 'suggestions':
+          onSuggestions(data.questions || []);
+          break;
+        case 'tool_use':
+          // Agent tự quyết định tra web — phần lớn turn không có event này
+          if (onToolUse) onToolUse(data.name);
+          break;
+        case 'done':
+          if (onDone) onDone(data);
+          break;
+        case 'error':
+          console.error('SSE error event:', data);
+          onToken(`\n\n**Lỗi:** ${data.message || 'Không xử lý được câu trả lời.'}`);
+          break;
+      }
     }
-
-    onCitation({
-      chunk_id: 'T01-042',
-      source: 'transcript-01-clean.md',
-      page: state.pageNumber || 1,
-      confidence: 0.95
-    });
-
-    onSuggestions([
-      'Làm thế nào để train ML model?',
-      'Sự khác biệt giữa supervised và unsupervised là gì?',
-      'Feature engineering quan trọng như thế nào?'
-    ]);
   }
 }
 
@@ -594,48 +724,71 @@ async function handleSendMessage() {
   // 3. Create Assistant bubble container ready for streaming
   let assistantBubbleObj = null;
 
-  try {
-    await sendChatMessageSSE(
-      text,
-      // onToken callback
-      (tokenText) => {
-        const existingIndicator = document.getElementById('typing-indicator');
-        if (existingIndicator) existingIndicator.remove();
+  /** Tạo bubble AI khi có tín hiệu đầu tiên (token hoặc tool call). */
+  const ensureBubble = () => {
+    const existingIndicator = document.getElementById('typing-indicator');
+    if (existingIndicator) existingIndicator.remove();
 
-        if (!assistantBubbleObj) {
-          assistantBubbleObj = createChatBubble('assistant', '');
-          assistantBubbleObj.rawText = '';
-          elements.chatMessages.appendChild(assistantBubbleObj.bubble);
-        }
-        assistantBubbleObj.rawText += tokenText;
-        assistantBubbleObj.content.innerHTML = formatMarkdown(assistantBubbleObj.rawText);
+    if (!assistantBubbleObj) {
+      assistantBubbleObj = createChatBubble('assistant', '');
+      assistantBubbleObj.rawText = '';
+      elements.chatMessages.appendChild(assistantBubbleObj.bubble);
+    }
+    return assistantBubbleObj;
+  };
+
+  try {
+    await sendChatMessageSSE(text, {
+      onToken: (tokenText) => {
+        const bubbleObj = ensureBubble();
+        removeToolBadge(bubbleObj.bubble);
+        bubbleObj.rawText += tokenText;
+        bubbleObj.content.innerHTML = formatMarkdown(bubbleObj.rawText);
         scrollToBottom();
       },
-      // onCitation callback
-      (citationData) => {
+
+      onToolUse: (toolName) => {
+        showToolBadge(ensureBubble().bubble, toolName);
+        scrollToBottom();
+      },
+
+      onCitation: (citationData) => {
         if (assistantBubbleObj) {
           appendCitationBadge(assistantBubbleObj.bubble, citationData);
           scrollToBottom();
         }
       },
-      // onSuggestions callback
-      (suggestionsList) => {
+
+      onSuggestions: (suggestionsList) => {
         if (assistantBubbleObj) {
           appendSuggestedQuestions(assistantBubbleObj.bubble, suggestionsList);
           scrollToBottom();
         }
+      },
+
+      onDone: (stats) => {
+        if (assistantBubbleObj) {
+          removeToolBadge(assistantBubbleObj.bubble);
+          appendTurnStats(assistantBubbleObj.bubble, stats);
+          scrollToBottom();
+        }
       }
-    );
+    });
   } catch (error) {
-    console.error('Error in chat service:', error);
+    console.error('Lỗi khi gọi AI Tutor:', error);
     const existingIndicator = document.getElementById('typing-indicator');
     if (existingIndicator) existingIndicator.remove();
 
-    const errBubble = createChatBubble(
-      'assistant',
-      'Sorry, an error occurred while processing your message.'
-    );
-    elements.chatMessages.appendChild(errBubble.bubble);
+    // Nêu đúng lỗi thật để biết đường sửa, thay vì câu chung chung
+    const message = error && error.message ? error.message : 'Lỗi không rõ.';
+    if (assistantBubbleObj) {
+      assistantBubbleObj.rawText += `\n\n**Lỗi:** ${message}`;
+      assistantBubbleObj.content.innerHTML = formatMarkdown(assistantBubbleObj.rawText);
+    } else {
+      const errBubble = createChatBubble('assistant', `**Lỗi:** ${message}`);
+      elements.chatMessages.appendChild(errBubble.bubble);
+    }
+    showToast(message, 'error');
   } finally {
     state.isChatLoading = false;
     elements.sendBtn.disabled = elements.chatInput.value.trim().length === 0;
@@ -733,12 +886,8 @@ async function triggerIdleSuggestion() {
       showIdleSuggestionsChip(data.questions, data.keywords || []);
     }
   } catch (error) {
-    // If backend offline, show simulated deep questions after idle
-    showIdleSuggestionsChip([
-      'Bạn có thể giải thích tại sao feature engineering quan trọng?',
-      'Sự khác biệt giữa supervised và unsupervised là gì?',
-      'Làm thế nào để lựa chọn model phù hợp?'
-    ]);
+    // Backend chết thì im lặng — gợi ý bịa còn tệ hơn không gợi ý
+    console.warn('Không lấy được gợi ý idle:', error);
   }
 }
 
@@ -756,3 +905,6 @@ function resetIdleTimer() {
 // Initialize UI & start Idle timer
 updateToolbarState();
 resetIdleTimer();
+
+// Nạp sẵn bài 1 — slide có trong repo nên không cần user upload gì
+loadLessonPdf(state.lessonId);

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI PDF Learning Assistant</title>
+  <title>VLearn · Trợ lý học bài giảng</title>
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,31 +27,25 @@
           <path d="m14.5 4-5 16" />
         </svg>
       </div>
-      <h1 class="app-title">AI PDF Learning Assistant</h1>
+      <h1 class="app-title">VLearn · Trợ lý học bài giảng</h1>
     </div>
 
     <div class="header-right">
       <div class="lesson-selector-wrapper">
-        <label for="lesson-select" class="lesson-label">Lesson:</label>
-        <select id="lesson-select" class="lesson-select" title="Chọn bài học RAG">
-          <option value="lesson-01">Lesson 1 (b1)</option>
-          <option value="lesson-02">Lesson 2 (b2)</option>
-          <option value="lesson-03">Lesson 3 (b3)</option>
-          <option value="lesson-04">Lesson 4 (b4)</option>
-          <option value="lesson-05">Lesson 5 (b5)</option>
+        <label for="lesson-select" class="lesson-label">Bài giảng:</label>
+        <!-- value phải đúng mã bài backend dùng (b1..b5); chọn bài là tự nạp
+             slide/{id}.pdf tương ứng, không cần upload tay -->
+        <select id="lesson-select" class="lesson-select" title="Chọn bài giảng">
+          <option value="b1">Bài 1 · AI &amp; LLM Foundation</option>
+          <option value="b2">Bài 2 · Xác định bài toán cho AI</option>
+          <option value="b3">Bài 3 · Từ Chatbot đến Agentic Agent</option>
+          <option value="b4">Bài 4 · Prompt &amp; Context Engineering</option>
+          <option value="b5">Bài 5 · Thiết kế sản phẩm AI</option>
         </select>
       </div>
       <span id="file-name-display" class="file-name-badge" style="display: none;"></span>
-      <button id="upload-btn" class="btn btn-primary" type="button">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="17 8 12 3 7 8" />
-          <line x1="12" x2="12" y1="3" y2="15" />
-        </svg>
-        <span>Upload PDF</span>
-      </button>
-      <!-- Hidden file uploader -->
+      <!-- Không có nút tải lên: slide của cả 5 bài nằm sẵn ở frontend2/slide/ và
+           tự nạp khi chọn bài. Input ẩn giữ lại để kéo-thả PDF vẫn hoạt động. -->
       <input type="file" id="pdf-file-input" accept=".pdf" hidden />
     </div>
   </header>
@@ -64,21 +58,21 @@
       <div class="pdf-toolbar">
         <div class="toolbar-group">
           <button id="prev-page" class="btn btn-secondary btn-sm" disabled>
-            &lt; Trước
+            Trang trước
           </button>
           <span id="page-indicator" class="indicator-text">Trang 0 / 0</span>
           <button id="next-page" class="btn btn-secondary btn-sm" disabled>
-            Sau &gt;
+            Trang sau
           </button>
         </div>
 
         <div class="toolbar-group">
           <button id="zoom-out" class="btn btn-secondary btn-sm" disabled>
-            Zoom -
+            Thu nhỏ
           </button>
           <span id="zoom-indicator" class="indicator-text">100%</span>
           <button id="zoom-in" class="btn btn-secondary btn-sm" disabled>
-            Zoom +
+            Phóng to
           </button>
         </div>
       </div>
@@ -87,18 +81,27 @@
       <div id="viewer-content" class="viewer-content">
         <!-- Empty State -->
         <div id="empty-state" class="empty-state">
-          <div class="empty-icon">📄</div>
-          <h2 class="empty-title">Tải lên một tệp PDF để bắt đầu học.</h2>
+          <div class="empty-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+              <path d="M14 2v5h5" /><path d="M9 13h6" /><path d="M9 17h4" />
+            </svg>
+          </div>
+          <h2 class="empty-title">Chưa nạp được slide.</h2>
           <p class="empty-description">
-            Nhấp vào nút Tải lên PDF ở trên hoặc kéo và thả bất kỳ tệp PDF nào vào đây.
+            Bài giảng nằm sẵn ở <code>frontend2/slide/</code> và tự nạp khi mở trang.
+            Nếu vẫn trống, hãy chắc chắn bạn mở qua HTTP chứ không phải <code>file://</code>:
+            <br /><code>cd frontend2 &amp;&amp; python3 -m http.server 3000</code>
+            rồi mở <code>http://localhost:3000</code>.
           </p>
-          <button id="empty-upload-btn" class="btn btn-outline">Chọn tệp PDF</button>
+          <button id="empty-upload-btn" class="btn btn-outline">Chọn tệp PDF khác</button>
         </div>
 
         <!-- Loading Spinner -->
         <div id="loading-spinner" class="loading-spinner-overlay" style="display: none;">
           <div class="spinner"></div>
-          <span class="loading-text">Rendering PDF...</span>
+          <span class="loading-text">Đang tải slide…</span>
         </div>
 
         <!-- Canvas Container -->
@@ -125,7 +128,7 @@
         </div>
         <div class="chat-status-wrapper">
           <span id="api-status-dot" class="api-status-dot online"></span>
-          <span id="api-status-text" class="chat-badge">Connected</span>
+          <span id="api-status-text" class="chat-badge">Đã kết nối</span>
         </div>
       </div>
 
@@ -135,8 +138,10 @@
         <div class="chat-bubble assistant">
           <div class="bubble-header">Trợ lý AI</div>
           <div class="bubble-content">
-            Xin chào! Hãy tải lên một tệp PDF ở phía bên trái và đặt cho tôi bất kỳ câu hỏi nào về nội dung của tệp đó.
-            Tôi sẵn sàng giúp bạn học tập!
+            Xin chào! Toàn bộ bài giảng đang mở nằm sẵn trong bộ nhớ của mình — kể cả phần mô tả biểu đồ.
+            <br /><br />
+            Bạn cứ hỏi thẳng về trang đang xem (<em>"tôi chưa hiểu chỗ này"</em>), hoặc hỏi một khái niệm
+            ở trang khác — mình vẫn thấy được. Đổi bài ở ô <strong>Bài giảng</strong> phía trên.
           </div>
         </div>
       </div>
@@ -144,12 +149,12 @@
       <!-- Chat Input Footer -->
       <div class="chat-footer">
         <div class="chat-input-wrapper">
-          <textarea id="chat-input" placeholder="Type your message..." rows="1"></textarea>
+          <textarea id="chat-input" placeholder="Hỏi về bài giảng bạn đang học…" rows="1"></textarea>
           <button id="send-btn" class="btn btn-primary btn-send" disabled>
-            Send
+            <span>Gửi</span>
           </button>
         </div>
-        <div class="chat-hint">Press Enter to send, Shift + Enter for new line</div>
+        <div class="chat-hint">Nhấn Enter để gửi · Shift + Enter để xuống dòng</div>
       </div>
     </aside>
   </main>

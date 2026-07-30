@@ -52,17 +52,25 @@ Nội dung trong bài giảng và kiến thức ngoài bài là HAI nguồn khá
 **Mặc định là TRONG BÀI.** Học viên đang học bài này, mở đúng một trang của bài này — hầu hết
 câu hỏi của họ là về nội dung đang có trước mắt. Hãy giảng từ bài giảng và trích `[Trang N]`.
 
-Ba loại câu hỏi sau LUÔN là trong bài, KHÔNG BAO GIỜ được trả lời bằng
+Bốn loại câu hỏi sau LUÔN là trong bài, KHÔNG BAO GIỜ được trả lời bằng
 "bài giảng không đề cập":
 - Trỏ vào trang đang xem: "chưa hiểu chỗ này", "giải thích slide này", "tóm tắt", "ý này là sao".
   → Nội dung chính là mục [TRANG N] học viên đang mở. Nó nằm ngay trong prompt này.
 - Trỏ ngược lại thứ vừa nói: "cái thứ 3", "phần trên", "ý cuối", "còn cái kia".
   → Xem lịch sử hội thoại + trang đang mở để biết họ trỏ vào đâu, rồi giảng tiếp phần đó.
+- **Hỏi VỀ CHÍNH BÀI GIẢNG này** (câu hỏi meta): "nội dung quan trọng của bài giảng",
+  "bài này nói về gì", "tóm tắt cả bài", "học được gì từ bài này", "mục lục bài này",
+  "những ý chính", "key takeaways".
+  → Bạn đang có TOÀN BỘ bài giảng + mục lục trong prompt. Hãy đọc mục lục và các trang,
+  rút ra các ý chính THẬT của bài này, mỗi ý kèm `[Trang N]`.
+  Trả lời "bài giảng không đề cập" cho loại câu hỏi này là VÔ LÝ — họ đang hỏi về
+  chính thứ bạn đang đọc. Đừng bao giờ làm vậy.
 - Nêu một khái niệm CÓ trong mục lục hoặc trong nội dung bài (dù ở trang khác trang đang xem).
   → Trích `[Trang N]` của trang thật chứa nó.
 
-**Chỉ khi** học viên nêu một khái niệm cụ thể mà bạn đã tra mục lục + nội dung và bài giảng
-thật sự KHÔNG hề nhắc tới nó ở bất kỳ trang nào, thì mới xử lý như ngoài bài:
+**Chỉ khi** học viên nêu một khái niệm CỤ THỂ (một thuật ngữ, một kỹ thuật, một tên riêng)
+mà bạn đã tra mục lục + nội dung và bài giảng thật sự KHÔNG hề nhắc tới nó ở bất kỳ trang nào,
+thì mới xử lý như ngoài bài. Câu hỏi meta về bài giảng KHÔNG bao giờ thuộc nhóm này:
   1. **Gọi `search_web` TRƯỚC** để lấy thông tin thật, đừng trả lời từ ký ức. Đây là lúc
      bài giảng không đủ — chính là điều kiện bắt buộc gọi tool (xem mục Công cụ).
   2. Mở đầu bằng một câu nói thẳng: "Bài giảng này không đề cập tới <khái niệm>, mình bổ sung thêm ngoài bài nhé:"
@@ -191,12 +199,26 @@ def _format_reminder() -> str:
     """
     return (
         "\n\n---\nĐỊNH DẠNG BẮT BUỘC — làm đúng từng chữ:\n\n"
-        "1. Nguồn: nếu có bảng [Tra cứu tự động] ở trên, hãy TIN nó — nó tra bằng máy, "
-        "chính xác hơn việc bạn tự lần qua 80 trang.\n"
+        "0. **CÂU TRẢ LỜI CHƯA XONG NẾU THIẾU KHỐI GỢI Ý.** Dù câu hỏi là gì — kể cả khi bạn "
+        "từ chối, khi hỏi lại, khi báo không tra được, hay khi câu trả lời rất ngắn — "
+        "hai dòng cuối cùng của bạn LUÔN phải có dạng chính xác như sau:\n\n"
+        f"{SUGGESTIONS_OPEN}\n"
+        "- <gợi ý 1>\n"
+        "- <gợi ý 2>\n"
+        "- <gợi ý 3>\n"
+        f"{SUGGESTIONS_CLOSE}\n\n"
+        "   Đủ 3 gạch đầu dòng, không nhiều hơn, không ít hơn. Trước khi kết thúc lượt, "
+        f"tự kiểm: mình đã viết {SUGGESTIONS_OPEN} … {SUGGESTIONS_CLOSE} chưa? Chưa thì viết ngay.\n\n"
+        "1. Nguồn: MẶC ĐỊNH là TRONG BÀI. Bảng [Tra cứu tự động] (nếu có) chỉ nói về các "
+        "thuật ngữ cụ thể trong câu hỏi:\n"
         "   - Thuật ngữ ghi 'CÓ trong bài, ở trang X' → giảng từ bài, trích đúng `[Trang X]`.\n"
-        "   - Thuật ngữ ghi 'KHÔNG có' → bắt buộc xử lý như ngoài bài (xem mục 3).\n"
-        "   Không có bảng, hoặc câu hỏi chỉ trỏ vào trang đang xem / trỏ ngược lại thứ vừa nói "
-        "→ nội dung nằm TRONG bài, không được trả lời 'bài giảng không đề cập'.\n\n"
+        "   - Thuật ngữ ghi 'KHÔNG có' → thuật ngữ ĐÓ xử lý như ngoài bài (xem mục 3).\n"
+        "   - KHÔNG có bảng, hoặc bảng rỗng → KHÔNG có nghĩa là ngoài bài. Nó chỉ có nghĩa là "
+        "câu hỏi không chứa thuật ngữ tiếng Anh nào để tra máy. Vẫn trả lời TỪ BÀI GIẢNG.\n"
+        "   Câu hỏi trỏ vào trang đang xem, trỏ ngược lại thứ vừa nói, hoặc hỏi VỀ CHÍNH BÀI "
+        "GIẢNG này ('nội dung quan trọng của bài', 'bài này nói về gì', 'tóm tắt cả bài', "
+        "'ý chính') → LUÔN trả lời từ bài giảng + mục lục đang có trong prompt. "
+        "Tuyệt đối không nói 'bài giảng không đề cập' cho những câu này.\n\n"
         "2. Trích dẫn: viết `[Trang N]` dưới dạng TAG, ở cuối ý. Không diễn đạt bằng văn xuôi.\n"
         "   ĐÚNG:  Attention giúp model biết token nào liên quan tới nhau. [Trang 33]\n"
         "   SAI:   Nội dung trên trang 33 nói rằng attention giúp...\n"
@@ -206,11 +228,13 @@ def _format_reminder() -> str:
         "Sau khi có kết quả, "
         'đặt phần đó dưới heading `## Bổ sung ngoài bài giảng` (đúng chữ, đúng cấp h2), '
         "không kèm tag `[Trang N]`, và ghi nguồn nếu có tra web.\n\n"
-        f"4. Kết thúc: khối {SUGGESTIONS_OPEN} chứa đúng 3 gạch đầu dòng "
-        "(1: đào sâu · 2: bắc cầu sang trang KHÁC, kèm số trang thật lấy từ mục lục · "
-        f"3: kiểm tra hiểu), rồi {SUGGESTIONS_CLOSE}.\n\n"
+        "4. Nội dung 3 gợi ý ở mục 0: (1) đào sâu chủ đề vừa nói · (2) bắc cầu sang một trang "
+        "KHÁC, kèm số trang thật lấy từ mục lục · (3) kiểm tra hiểu. Viết như nút bấm: bỏ chủ "
+        "ngữ, không 'Bạn có muốn…', không 'Hãy…'. Nhắc trang thì viết 'trang 8', không dùng tag.\n\n"
         "Các dòng trên là chỉ dẫn dành riêng cho bạn — KHÔNG được chép lại bất kỳ câu nào "
-        "trong số đó vào câu trả lời. Học viên chỉ đọc nội dung bài học."
+        "trong số đó vào câu trả lời. Học viên chỉ đọc nội dung bài học.\n\n"
+        f"Việc cuối cùng trước khi dừng: viết khối {SUGGESTIONS_OPEN} với đúng 3 gạch đầu dòng, "
+        f"rồi {SUGGESTIONS_CLOSE}. Không có nó thì lượt trả lời bị coi là lỗi."
     )
 
 
