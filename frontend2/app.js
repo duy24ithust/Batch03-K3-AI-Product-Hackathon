@@ -875,7 +875,7 @@ elements.chatInput.addEventListener('keydown', (e) => {
 // 10. Idle Suggestion Detection (POST /suggest/idle)
 // ---------------------------------------------------------
 let idleTimer;
-const IDLE_THRESHOLD_SECONDS = 45;
+const IDLE_THRESHOLD_SECONDS = 10;
 
 function showIdleSuggestionsChip(questions, keywords = []) {
   if (!questions || questions.length === 0) return;
@@ -930,12 +930,15 @@ function showIdleSuggestionsChip(questions, keywords = []) {
 }
 
 async function triggerIdleSuggestion() {
+  console.debug(
+    `[idle] ${IDLE_THRESHOLD_SECONDS}s không hoạt động → xin gợi ý cho trang ${state.pageNumber}`
+  );
   try {
     const response = await fetch(`${BACKEND_URL}/suggest/idle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        session_id: DEFAULT_SESSION_ID,
+        session_id: currentSessionId,
         lesson_id: state.lessonId || DEFAULT_LESSON_ID,
         slide_id: "slide-" + String(state.pageNumber || 1).padStart(3, '0'),
         idle_seconds: IDLE_THRESHOLD_SECONDS
@@ -959,8 +962,12 @@ function resetIdleTimer() {
   }, IDLE_THRESHOLD_SECONDS * 1000);
 }
 
-['mousemove', 'keydown', 'click'].forEach((event) => {
-  document.addEventListener(event, resetIdleTimer);
+// KHÔNG dùng 'mousemove': học viên đọc slide vẫn rê chuột theo dòng, chỉ cần nhích
+// một pixel là timer về 0 — ngưỡng 45s gần như không bao giờ chạm tới. "Dừng lại đọc"
+// mới là lúc cần gợi ý, mà đó đúng là lúc chuột hay cựa quậy nhất.
+// 'scroll' thì phải có: cuộn sang slide khác là đang xem tiếp, không phải đang bí.
+['keydown', 'click', 'scroll'].forEach((event) => {
+  document.addEventListener(event, resetIdleTimer, { passive: true, capture: true });
 });
 
 // Initialize UI & start Idle timer
