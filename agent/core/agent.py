@@ -36,7 +36,10 @@ TOOL_TIMEOUT = 15.0
 
 _client: Optional[AsyncOpenAI] = None
 
-_CITATION = re.compile(r"\[Trang (\d+)\]")
+# Model gộp nhiều trang vào một tag: `[Trang 8, 9]`, `[Trang 27, 28, 30, 36]`.
+# Bắt cả cụm rồi tách theo dấu phẩy — regex chỉ khớp `[Trang N]` sẽ bỏ sót toàn bộ
+# dạng gộp, và những trang đó không bao giờ tới được frontend.
+_CITATION = re.compile(r"\[Trang (\d+(?:\s*,\s*\d+)*)\]")
 _SUGGESTION_LINE = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*(.+?)\s*$")
 
 # Mốc bắt đầu khối gợi ý. Nhận CẢ thẻ đóng vì gpt-4o-mini thỉnh thoảng phát
@@ -82,10 +85,11 @@ def extract_citations(answer: str, lecture: Lecture) -> list[int]:
     Model bịa số trang thì citation đó bị chặn ở đây chứ không đi ra frontend.
     """
     pages: list[int] = []
-    for raw in _CITATION.findall(answer):
-        page = int(raw)
-        if page not in pages and lecture.has_page(page):
-            pages.append(page)
+    for group in _CITATION.findall(answer):
+        for raw in group.split(","):
+            page = int(raw.strip())
+            if page not in pages and lecture.has_page(page):
+                pages.append(page)
     return pages
 
 

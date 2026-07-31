@@ -452,11 +452,20 @@ function formatMarkdown(text) {
     .replace(/`(.*?)`/g, '<code>$1</code>')
     // [Trang N] trong câu trả lời → chip bấm được để nhảy tới đúng trang đó.
     // Backend đã lọc bỏ trang model bịa, nên số trang ở đây luôn tồn tại thật.
+    // Model hay gộp nhiều trang vào một tag ([Trang 8, 9]) — tách thành từng chip
+    // riêng, vì mỗi chip nhảy tới đúng một trang.
     .replace(
-      /\[Trang (\d+)\]/g,
-      (_m, p) =>
-        `<button type="button" class="page-ref" data-page="${p}" ` +
-        `title="Xem trang ${p}">Trang ${p}</button>`
+      /\[Trang (\d+(?:\s*,\s*\d+)*)\]/g,
+      (_m, group) =>
+        group
+          .split(',')
+          .map((raw) => raw.trim())
+          .map(
+            (p) =>
+              `<button type="button" class="page-ref" data-page="${p}" ` +
+              `title="Xem trang ${p}">Trang ${p}</button>`
+          )
+          .join(' ')
     )
     // Danh sách thật thay vì ký tự '•' — trình đọc màn hình hiểu đúng cấu trúc
     .replace(/^[-*] (.*$)/gim, '<li>$1</li>')
