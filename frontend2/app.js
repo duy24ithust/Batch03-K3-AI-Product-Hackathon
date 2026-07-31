@@ -813,6 +813,18 @@ async function handleSendMessage() {
 
 elements.sendBtn.addEventListener('click', handleSendMessage);
 
+// Chip gợi ý trong lời chào là markup tĩnh trong index.html (bubble chào không do
+// createChatBubble sinh ra), nên bắt click ở container thay vì gắn listener lúc render.
+// Chip biến mất sau khi bấm — lời mời "thử câu này" chỉ có nghĩa ở lượt đầu.
+elements.chatMessages.addEventListener('click', (e) => {
+  const pill = e.target.closest('[data-greeting-question]');
+  if (!pill || state.isChatLoading) return;
+
+  elements.chatInput.value = pill.getAttribute('data-greeting-question');
+  pill.closest('.suggestions-container')?.remove();
+  handleSendMessage();
+});
+
 elements.chatInput.addEventListener('input', () => {
   elements.sendBtn.disabled =
     elements.chatInput.value.trim().length === 0 || state.isChatLoading;
