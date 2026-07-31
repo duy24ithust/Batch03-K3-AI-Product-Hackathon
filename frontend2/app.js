@@ -129,8 +129,14 @@ function updateToolbarState() {
 
 let slideObserver = null;
 
-async function renderAllSlides() {
-  if (!state.pdfDoc || state.isRendering) return;
+// Token của lần nạp mới nhất. Đổi bài khi bài trước đang render dở là chuyện thường
+// (render 74 trang ở scale 2.0 mất vài giây), nên lần render cũ phải tự dừng thay vì
+// để lần mới bỏ chạy — trước đây `if (state.isRendering) return` khiến bài mới không
+// bao giờ render mà spinner vẫn quay, không lỗi, không log.
+let loadToken = 0;
+
+async function renderAllSlides(token = loadToken) {
+  if (!state.pdfDoc) return;
   state.isRendering = true;
 
   try {
@@ -164,6 +170,10 @@ async function renderAllSlides() {
 
     // Render all PDF pages as stacked slide cards inside the scrolling container
     for (let num = 1; num <= state.numPages; num++) {
+      // Bài khác đã được chọn giữa chừng → bỏ dở, để lần nạp mới vẽ lại từ đầu.
+      // Không đụng vào DOM nữa vì container giờ thuộc về bài mới.
+      if (token !== loadToken) return;
+
       const page = await state.pdfDoc.getPage(num);
       const viewport = page.getViewport({ scale: 2.0 }); // High-resolution HiDPI scale for sharp text at any zoom
 
@@ -194,10 +204,14 @@ async function renderAllSlides() {
     }
   } catch (error) {
     console.error('Error rendering PDF slides:', error);
-    showToast('Error rendering PDF slides', 'error');
+    if (token === loadToken) showToast('Error rendering PDF slides', 'error');
   } finally {
-    state.isRendering = false;
-    updateToolbarState();
+    // Chỉ lần render hiện hành mới được hạ cờ — lần cũ vừa bị thay thế mà hạ cờ thì
+    // xoá mất trạng thái "đang render" của lần mới.
+    if (token === loadToken) {
+      state.isRendering = false;
+      updateToolbarState();
+    }
   }
 }
 
@@ -224,6 +238,11 @@ async function loadLessonPdf(lessonId) {
     return;
   }
 
+  // Cấp token cho lần nạp này. Đổi bài liên tiếp thì các fetch chạy song song và
+  // cái về sau ghi đè cái về trước — không có token thì có thể xem b3 trên dropdown
+  // mà màn hình hiện slide b2, trong khi agent đã đọc b3.
+  const token = ++loadToken;
+
   state.lessonId = lessonId;
   currentSessionId = generateSessionId(); // Reset chat history per lesson
   if (elements.lessonSelect) elements.lessonSelect.value = lessonId;
@@ -244,15 +263,22 @@ async function loadLessonPdf(lessonId) {
     if (!res.ok) throw new Error(`HTTP ${res.status} khi tải ${url}`);
 
     const buf = await res.arrayBuffer();
-    state.pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
-    state.numPages = state.pdfDoc.numPages;
+    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+
+    // Người dùng đã chọn bài khác trong lúc chờ mạng → bỏ kết quả này đi
+    if (token !== loadToken) return;
+
+    state.pdfDoc = doc;
+    state.numPages = doc.numPages;
     state.pageNumber = 1;
     state.pdfFile = null;
 
-    await renderAllSlides();
+    await renderAllSlides(token);
+    if (token !== loadToken) return;
     showToast(`${label} — ${state.numPages} trang`, 'success');
   } catch (err) {
     console.error(`Không nạp được ${url}:`, err);
+    if (token !== loadToken) return;
     setUiLoading(false);
     elements.emptyState.style.display = 'block';
 
@@ -286,20 +312,28 @@ function loadPdfFile(file) {
 
   setUiLoading(true, `Loading "${file.name}"...`);
 
+  // Cùng cơ chế token như loadLessonPdf — đổi bài giữa chừng thì file này bị bỏ
+  const token = ++loadToken;
+
   const reader = new FileReader();
   reader.onload = async function (e) {
     const typedarray = new Uint8Array(e.target.result);
 
     try {
       const loadingTask = pdfjsLib.getDocument({ data: typedarray });
-      state.pdfDoc = await loadingTask.promise;
-      state.numPages = state.pdfDoc.numPages;
+      const doc = await loadingTask.promise;
+      if (token !== loadToken) return;
+
+      state.pdfDoc = doc;
+      state.numPages = doc.numPages;
       state.pageNumber = 1;
 
-      await renderAllSlides();
+      await renderAllSlides(token);
+      if (token !== loadToken) return;
       showToast('PDF uploaded successfully!', 'success');
     } catch (err) {
       console.error('Failed to load PDF:', err);
+      if (token !== loadToken) return;
       setUiLoading(false);
       elements.emptyState.style.display = 'block';
       showToast('Could not parse PDF document.', 'error');
